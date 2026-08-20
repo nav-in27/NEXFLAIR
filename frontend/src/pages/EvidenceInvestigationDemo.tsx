@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { CheckCircle2, AlertTriangle, RotateCcw, Sparkles, Filter } from 'lucide-react';
+import { CheckCircle2, AlertTriangle, RotateCcw, Filter } from 'lucide-react';
 
 interface ScenarioPayload {
   scenario_id: string;
@@ -68,21 +68,21 @@ export const EvidenceInvestigationDemo: React.FC = () => {
 
   const handleReviewAction = (action: string) => {
     if (action === 'APPROVE') {
-      setActionFeedback(`✅ TICKET ${data?.ticket_code_display || '#4821'} APPROVED & CLOSED SUCCESSFULLY`);
+      setActionFeedback(`TICKET ${data?.ticket_code_display || '#4821'} APPROVED & RECORDED AS RESOLVED`);
     } else if (action === 'REQUEST_REVERIFICATION') {
-      setActionFeedback('⚠️ RE-VERIFICATION REQUESTED FROM FIELD WORKER');
+      setActionFeedback('RE-VERIFICATION DISPATCHED TO FIELD WORKER');
     } else if (action === 'REOPEN') {
-      setActionFeedback('🚨 TICKET REOPENED FOR RE-EVALUATION');
+      setActionFeedback('TICKET REOPENED FOR AUDIT RE-EVALUATION');
     }
     setTimeout(() => setActionFeedback(null), 5000);
   };
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-950 text-slate-400 font-sans">
-        <div className="text-center space-y-3">
-          <div className="inline-block animate-spin text-3xl">⚙️</div>
-          <p className="text-sm font-semibold tracking-wider">Loading Hackathon Evidence Investigation Engine...</p>
+      <div className="min-h-screen flex items-center justify-center bg-[#f8fafc] text-slate-500 font-sans">
+        <div className="text-center space-y-2">
+          <div className="w-8 h-8 border-2 border-slate-900 border-t-transparent rounded-full animate-spin mx-auto" />
+          <p className="text-xs font-mono">Loading Verification Engine Scenarios...</p>
         </div>
       </div>
     );
@@ -90,56 +90,56 @@ export const EvidenceInvestigationDemo: React.FC = () => {
 
   const decisionBadgeStyle =
     data?.decision === 'VERIFIED'
-      ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40 shadow-emerald-500/10'
+      ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
       : data?.decision === 'HUMAN_REVIEW'
-      ? 'bg-purple-500/20 text-purple-300 border-purple-500/40 shadow-purple-500/10'
-      : 'bg-rose-500/20 text-rose-300 border-rose-500/40 shadow-rose-500/10';
+      ? 'bg-amber-50 text-amber-800 border-amber-200'
+      : 'bg-rose-50 text-rose-800 border-rose-200';
 
   const scoreTextColor =
     (data?.overall_score ?? 0) >= 90
-      ? 'text-emerald-400'
+      ? 'text-emerald-700'
       : (data?.overall_score ?? 0) >= 70
-      ? 'text-purple-400'
-      : 'text-rose-400';
+      ? 'text-amber-700'
+      : 'text-rose-700';
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 font-sans p-4 sm:p-8 flex justify-center">
+    <div className="min-h-screen bg-[#f8fafc] text-slate-900 font-sans p-4 sm:p-8 flex justify-center">
       <div className="w-full max-w-5xl space-y-6">
 
         {/* Action Toast Feedback */}
         {actionFeedback && (
-          <div className="sticky top-4 z-50 p-4 rounded-2xl bg-emerald-950 border border-emerald-500 text-emerald-200 font-bold text-center text-sm shadow-2xl animate-fade-in flex items-center justify-center gap-3">
-            <Sparkles className="w-5 h-5 text-emerald-400" />
+          <div className="sticky top-4 z-50 p-4 rounded-md bg-slate-900 text-white font-medium text-center text-xs shadow-lg animate-fade-in flex items-center justify-center gap-2">
+            <CheckCircle2 className="w-4 h-4 text-emerald-400" />
             <span>{actionFeedback}</span>
           </div>
         )}
 
-        {/* DETERMINISTIC SCENARIO SWITCHER CONTROL BAR FOR PRESENTER */}
-        <div className="rounded-3xl bg-slate-900/90 border border-amber-500/40 p-5 space-y-3 shadow-2xl">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-black uppercase tracking-widest text-amber-400 flex items-center gap-2">
-              <Filter className="w-4 h-4" />
-              DETERMINISTIC HACKATHON DEMO MODE SCENARIOS
+        {/* SCENARIO SWITCHER */}
+        <div className="civic-card p-5 space-y-3">
+          <div className="flex items-center justify-between border-b border-slate-100 pb-2.5">
+            <span className="text-xs font-bold uppercase tracking-wider text-slate-900 flex items-center gap-2">
+              <Filter className="w-3.5 h-3.5 text-blue-600" />
+              Interactive Verification Test Scenarios
             </span>
-            <span className="text-[10px] font-mono text-slate-400">Select scenario to present live verification pipeline</span>
+            <span className="text-[10px] font-mono text-slate-400">Select scenario to simulate pipeline behavior</span>
           </div>
 
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-2">
             {[
-              { id: 'GENUINE_RESOLUTION', label: '1. Genuine Resolution', color: 'border-emerald-500/50 text-emerald-400' },
-              { id: 'WRONG_LOCATION', label: '2. Wrong Location', color: 'border-rose-500/50 text-rose-400' },
-              { id: 'NO_RESOLUTION', label: '3. No Resolution', color: 'border-amber-500/50 text-amber-400' },
-              { id: 'REPLAYED_EVIDENCE', label: '4. Replayed Evidence', color: 'border-rose-500/50 text-rose-400' },
-              { id: 'SPATIO_TEMPORAL_ANOMALY', label: '5. Speed Anomaly', color: 'border-rose-500/50 text-rose-400' },
-              { id: 'LOW_QUALITY_EVIDENCE', label: '6. Low Quality', color: 'border-purple-500/50 text-purple-400' },
+              { id: 'GENUINE_RESOLUTION', label: '1. Genuine Resolution' },
+              { id: 'WRONG_LOCATION', label: '2. Wrong Location' },
+              { id: 'NO_RESOLUTION', label: '3. No Resolution' },
+              { id: 'REPLAYED_EVIDENCE', label: '4. Replayed Evidence' },
+              { id: 'SPATIO_TEMPORAL_ANOMALY', label: '5. Speed Anomaly' },
+              { id: 'LOW_QUALITY_EVIDENCE', label: '6. Low Quality' },
             ].map((sc) => (
               <button
                 key={sc.id}
                 onClick={() => handleSelectScenario(sc.id)}
-                className={`py-2 px-3 rounded-xl text-xs font-bold transition-all text-center border ${
+                className={`py-2 px-2.5 rounded-md text-xs font-mono font-semibold transition-colors text-center border ${
                   activeScenarioId === sc.id
-                    ? 'bg-amber-500 text-slate-950 border-amber-400 shadow-lg shadow-amber-500/20 font-black'
-                    : 'bg-slate-950 text-slate-300 border-slate-800 hover:bg-slate-800'
+                    ? 'bg-slate-900 text-white border-slate-900'
+                    : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'
                 }`}
               >
                 {sc.label}
@@ -149,43 +149,42 @@ export const EvidenceInvestigationDemo: React.FC = () => {
         </div>
 
         {/* HEADER BLOCK */}
-        <div className="rounded-3xl bg-slate-900 border border-slate-800 p-6 md:p-8 shadow-2xl flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+        <div className="civic-card p-6 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
           <div className="space-y-1">
-            <div className="flex flex-wrap items-center gap-3">
-              <span className="font-mono text-2xl font-black text-amber-400 bg-amber-950/60 px-4 py-1.5 rounded-xl border border-amber-800/60 tracking-wider">
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="font-mono text-lg font-bold text-slate-900 bg-slate-100 px-2.5 py-0.5 rounded border border-slate-200">
                 {data?.ticket_code_display || 'TKT #4821'}
               </span>
-              <span className="px-3 py-1 rounded-lg bg-sky-500/10 text-sky-400 border border-sky-500/20 font-bold text-xs uppercase tracking-wider">
+              <span className="px-2 py-0.5 rounded bg-blue-50 text-blue-800 border border-blue-200 font-mono text-xs font-semibold">
                 {data?.complaint_type || 'STAGNANT WATER'}
               </span>
-              <span className="px-3 py-1 rounded-lg bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 font-bold text-xs uppercase tracking-wider">
+              <span className="px-2 py-0.5 rounded bg-slate-100 text-slate-700 border border-slate-200 font-mono text-xs font-semibold">
                 {data?.ward_name || 'WARD 14'}
               </span>
             </div>
-            <p className="text-xs text-slate-400 mt-2 font-semibold">
-              {data?.title} — <span className="text-slate-300">{data?.subtitle}</span>
+            <p className="text-xs text-slate-500 pt-1 font-medium">
+              {data?.title} — <span className="text-slate-700">{data?.subtitle}</span>
             </p>
           </div>
 
-          <div className="flex items-center gap-2">
-            <span className="inline-block w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></span>
-            <span className="text-xs font-mono font-bold text-emerald-400 uppercase tracking-widest">
-              Pipeline Active
-            </span>
+          <div className="flex items-center gap-1.5 font-mono text-xs text-emerald-700 font-semibold bg-emerald-50 px-2.5 py-1 rounded border border-emerald-200">
+            <span className="w-2 h-2 rounded-full bg-emerald-600 animate-pulse" />
+            <span>Forensic Engine Active</span>
           </div>
         </div>
 
         {/* BEFORE & VERIFICATION EVIDENCE PAIR */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          
           {/* BEFORE CARD */}
-          <div className="rounded-3xl bg-slate-900 border border-slate-800 p-5 space-y-3">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-black uppercase tracking-widest text-slate-400 flex items-center gap-2">
-                📷 BEFORE EVIDENCE
+          <div className="civic-card p-4 space-y-2.5">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-2">
+              <span className="text-xs font-bold uppercase tracking-wider text-slate-700">
+                Before Evidence
               </span>
-              <span className="text-[10px] font-mono text-slate-500">Complaint Scene</span>
+              <span className="text-[10px] font-mono text-slate-400">Citizen Report Baseline</span>
             </div>
-            <div className="relative rounded-2xl overflow-hidden border border-slate-800 bg-slate-950 aspect-video">
+            <div className="relative rounded-lg overflow-hidden border border-slate-200 bg-slate-100 aspect-video">
               <img
                 src={data?.before_image_url || '/uploads/evidence/demo_before_a.jpg'}
                 alt="BEFORE Complaint Evidence"
@@ -195,16 +194,16 @@ export const EvidenceInvestigationDemo: React.FC = () => {
           </div>
 
           {/* VERIFICATION CARD */}
-          <div className="rounded-3xl bg-slate-900 border border-slate-800 p-5 space-y-3">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-black uppercase tracking-widest text-slate-400 flex items-center gap-2">
-                📸 VERIFICATION EVIDENCE
+          <div className="civic-card p-4 space-y-2.5">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-2">
+              <span className="text-xs font-bold uppercase tracking-wider text-slate-700">
+                Verification Evidence
               </span>
-              <span className="text-[10px] font-mono text-emerald-400 font-bold bg-emerald-950 px-2 py-0.5 rounded border border-emerald-800">
-                LIVE CAMERA CAPTURE
+              <span className="text-[10px] font-mono text-emerald-800 font-semibold bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
+                Live Resolution Capture
               </span>
             </div>
-            <div className="relative rounded-2xl overflow-hidden border border-slate-800 bg-slate-950 aspect-video">
+            <div className="relative rounded-lg overflow-hidden border border-slate-200 bg-slate-100 aspect-video">
               <img
                 src={data?.verification_image_url || '/uploads/evidence/demo_clean_a.jpg'}
                 alt="VERIFICATION Evidence"
@@ -215,155 +214,157 @@ export const EvidenceInvestigationDemo: React.FC = () => {
         </div>
 
         {/* VISUAL MATCH ANALYSIS SECTION */}
-        <div className="rounded-3xl bg-slate-900 border border-slate-800 p-6 md:p-8 space-y-4 shadow-xl">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-800/80 pb-4">
+        <div className="civic-card p-6 space-y-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-100 pb-3">
             <div>
-              <h3 className="text-base font-black text-white uppercase tracking-wider flex items-center gap-2">
-                🔬 VISUAL MATCH ANALYSIS
-              </h3>
-              <p className="text-xs text-slate-400 mt-0.5">
-                SuperPoint + LightGlue Keypoint Feature Matching & Geometric Inlier Extraction
+              <h2 className="text-xs font-bold text-slate-900 uppercase tracking-wider">
+                Visual Correspondence Analysis
+              </h2>
+              <p className="text-[11px] text-slate-500 mt-0.5 font-mono">
+                SuperPoint + RANSAC Keypoint Geometric Inlier Matching
               </p>
             </div>
-            <div className="flex items-center gap-2 font-mono">
-              <span className="text-xs text-slate-400 uppercase font-bold">Scene Consistency:</span>
-              <span className={`text-xl font-black px-3 py-1 rounded-xl border ${data?.scene_consistency && data.scene_consistency >= 70 ? 'text-emerald-400 bg-emerald-950/80 border-emerald-800/60' : 'text-rose-400 bg-rose-950/80 border-rose-800/60'}`}>
+            <div className="flex items-center gap-2 font-mono text-xs">
+              <span className="text-slate-500 uppercase font-medium">Scene Match Index:</span>
+              <span className={`font-bold px-2.5 py-0.5 rounded border ${data?.scene_consistency && data.scene_consistency >= 70 ? 'text-emerald-800 bg-emerald-50 border-emerald-200' : 'text-rose-800 bg-rose-50 border-rose-200'}`}>
                 {data?.scene_consistency ?? 94} / 100
               </span>
             </div>
           </div>
 
-          <div className="rounded-2xl border border-slate-800 bg-slate-950 overflow-hidden">
+          <div className="rounded-lg border border-slate-200 bg-slate-900 overflow-hidden">
             <img
               src={data?.scene_viz_url || '/uploads/visualizations/demo_match_genuine.png'}
               alt="Feature Match Visualization"
-              className="w-full max-h-72 object-contain bg-slate-950"
+              className="w-full max-h-72 object-contain bg-slate-900"
             />
           </div>
         </div>
 
         {/* HAZARD CHANGE SECTION */}
-        <div className="rounded-3xl bg-slate-900 border border-slate-800 p-6 md:p-8 space-y-5 shadow-xl">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-800/80 pb-4">
+        <div className="civic-card p-6 space-y-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-100 pb-3">
             <div>
-              <h3 className="text-base font-black text-white uppercase tracking-wider flex items-center gap-2">
-                🌊 HAZARD CHANGE
-              </h3>
-              <p className="text-xs text-slate-400 mt-0.5">
-                Stagnant Water Surface Mask Segmentation & Pixel Area Reduction Calculation
+              <h2 className="text-xs font-bold text-slate-900 uppercase tracking-wider">
+                Defect Area Reduction Analysis
+              </h2>
+              <p className="text-[11px] text-slate-500 mt-0.5 font-mono">
+                Surface Mask Segmentation & Pixel Area Differential
               </p>
             </div>
-            <div className="font-mono text-right">
-              <span className="text-xs text-slate-400 uppercase font-bold block">Visual Reduction</span>
-              <span className={`text-2xl font-black ${data?.visual_reduction_pct && data.visual_reduction_pct >= 70 ? 'text-cyan-400' : 'text-amber-400'}`}>
+            <div className="font-mono text-right text-xs">
+              <span className="text-slate-500 uppercase font-medium">Visual Clearance: </span>
+              <span className={`font-bold ${data?.visual_reduction_pct && data.visual_reduction_pct >= 70 ? 'text-emerald-700' : 'text-amber-700'}`}>
                 {data?.visual_reduction_pct ?? 83.2}%
               </span>
             </div>
           </div>
 
           {/* Area Metrics Grid */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 font-mono text-center">
-            <div className="p-4 rounded-2xl bg-slate-950 border border-slate-800">
-              <div className="text-[11px] text-slate-400 uppercase font-bold">Before Hazard Area</div>
-              <div className="text-2xl font-black text-rose-400 mt-1">{data?.before_hazard_area_px?.toLocaleString() ?? '12,500'} px</div>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 font-mono text-center text-xs">
+            <div className="p-3 rounded-md bg-slate-50 border border-slate-200">
+              <div className="text-[10px] text-slate-500 uppercase font-medium">Before Hazard Area</div>
+              <div className="text-lg font-bold text-slate-900 mt-1">{data?.before_hazard_area_px?.toLocaleString() ?? '12,500'} px</div>
             </div>
-            <div className="p-4 rounded-2xl bg-slate-950 border border-slate-800">
-              <div className="text-[11px] text-slate-400 uppercase font-bold">After Hazard Area</div>
-              <div className="text-2xl font-black text-emerald-400 mt-1">{data?.after_hazard_area_px?.toLocaleString() ?? '2,100'} px</div>
+            <div className="p-3 rounded-md bg-slate-50 border border-slate-200">
+              <div className="text-[10px] text-slate-500 uppercase font-medium">After Hazard Area</div>
+              <div className="text-lg font-bold text-emerald-800 mt-1">{data?.after_hazard_area_px?.toLocaleString() ?? '2,100'} px</div>
             </div>
-            <div className="p-4 rounded-2xl bg-slate-950 border border-cyan-900/50 bg-cyan-950/20">
-              <div className="text-[11px] text-cyan-400 uppercase font-bold">Visual Reduction</div>
-              <div className="text-2xl font-black text-cyan-300 mt-1">{data?.visual_reduction_pct ?? 83.2}%</div>
+            <div className="p-3 rounded-md bg-slate-50 border border-slate-200">
+              <div className="text-[10px] text-slate-500 uppercase font-medium">Net Reduction</div>
+              <div className="text-lg font-bold text-blue-800 mt-1">{data?.visual_reduction_pct ?? 83.2}%</div>
             </div>
           </div>
 
-          <div className="rounded-2xl border border-slate-800 bg-slate-950 overflow-hidden">
+          <div className="rounded-lg border border-slate-200 bg-slate-900 overflow-hidden">
             <img
               src={data?.hazard_viz_url || '/uploads/visualizations/demo_hazard_genuine.png'}
               alt="Hazard Mask Visualization"
-              className="w-full max-h-72 object-contain bg-slate-950"
+              className="w-full max-h-72 object-contain bg-slate-900"
             />
           </div>
         </div>
 
         {/* EVIDENCE SIGNALS BREAKDOWN */}
-        <div className="rounded-3xl bg-slate-900 border border-slate-800 p-6 md:p-8 space-y-4 shadow-xl">
-          <h3 className="text-base font-black text-white uppercase tracking-wider border-b border-slate-800/80 pb-4 flex items-center gap-2">
-            ⚡ EVIDENCE SIGNALS BREAKDOWN
-          </h3>
+        <div className="civic-card p-6 space-y-4">
+          <h2 className="text-xs font-bold text-slate-900 uppercase tracking-wider border-b border-slate-100 pb-3">
+            Multi-Gate Forensic Signals Breakdown
+          </h2>
 
-          <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-7 gap-3 font-mono text-center">
+          <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-7 gap-2.5 font-mono text-center">
             {[
-              { name: 'Scene', val: data?.signals.scene ?? 94, color: 'text-indigo-400' },
-              { name: 'Hazard', val: data?.signals.hazard ?? 91, color: 'text-cyan-400' },
-              { name: 'Live Evidence', val: data?.signals.live_capture ?? 97, color: 'text-emerald-400' },
-              { name: 'Spatial', val: data?.signals.spatial ?? 89, color: 'text-amber-400' },
-              { name: 'Temporal', val: data?.signals.temporal ?? 93, color: 'text-purple-400' },
-              { name: 'Freshness', val: data?.signals.freshness ?? 98, color: 'text-sky-400' },
-              { name: 'Quality', val: data?.signals.quality ?? 95, color: 'text-emerald-300' },
+              { name: 'Scene', val: data?.signals.scene ?? 94 },
+              { name: 'Hazard', val: data?.signals.hazard ?? 91 },
+              { name: 'Live Capture', val: data?.signals.live_capture ?? 97 },
+              { name: 'Spatial', val: data?.signals.spatial ?? 89 },
+              { name: 'Temporal', val: data?.signals.temporal ?? 93 },
+              { name: 'Freshness', val: data?.signals.freshness ?? 98 },
+              { name: 'Quality', val: data?.signals.quality ?? 95 },
             ].map((sig) => (
-              <div key={sig.name} className="p-3 rounded-2xl bg-slate-950 border border-slate-800 flex flex-col justify-between">
-                <span className="text-[10px] uppercase font-bold text-slate-400 truncate">{sig.name}</span>
-                <span className={`text-2xl font-black ${sig.color} mt-2`}>{sig.val}</span>
+              <div key={sig.name} className="p-3 rounded-md bg-slate-50 border border-slate-200 flex flex-col justify-between">
+                <span className="text-[10px] uppercase font-medium text-slate-500 truncate">{sig.name}</span>
+                <span className="text-xl font-bold text-slate-900 mt-1">{sig.val}</span>
               </div>
             ))}
           </div>
         </div>
 
-        {/* CIVIC EVIDENCE INTEGRITY FINAL SCORE BADGE */}
-        <div className="rounded-3xl bg-gradient-to-br from-slate-900 via-slate-900 to-slate-950 border border-slate-800 p-8 text-center space-y-4 shadow-2xl">
-          <div className="text-xs font-black uppercase tracking-widest text-slate-400">
-            CIVIC EVIDENCE INTEGRITY
+        {/* FINAL SCORE BADGE */}
+        <div className="civic-card p-8 text-center space-y-3">
+          <div className="text-[11px] font-mono font-bold uppercase tracking-wider text-slate-400">
+            COMPOSITE INTEGRITY SCORE
           </div>
 
-          <div className={`text-6xl md:text-7xl font-black font-mono tracking-tight ${scoreTextColor}`}>
-            {data?.overall_score ?? 93} <span className="text-2xl text-slate-500 font-bold">/ 100</span>
+          <div className={`text-5xl md:text-6xl font-extrabold font-mono tracking-tight ${scoreTextColor}`}>
+            {data?.overall_score ?? 93} <span className="text-xl text-slate-400 font-medium">/ 100</span>
           </div>
 
-          <div className={`inline-block px-8 py-2.5 rounded-full border text-lg font-black tracking-widest uppercase shadow-lg ${decisionBadgeStyle}`}>
-            {data?.decision ?? 'VERIFIED'}
+          <div>
+            <span className={`inline-block px-4 py-1 rounded text-xs font-mono font-bold uppercase tracking-wider border ${decisionBadgeStyle}`}>
+              {data?.decision ?? 'VERIFIED'}
+            </span>
           </div>
         </div>
 
         {/* EXPLANATION BOX */}
-        <div className="rounded-3xl bg-slate-900 border border-slate-800 p-6 md:p-8 space-y-2 shadow-xl">
-          <div className="text-xs font-black uppercase tracking-widest text-slate-400">
-            EXPLANATION
+        <div className="civic-card p-5 space-y-1.5">
+          <div className="text-[11px] font-mono font-bold uppercase tracking-wider text-slate-400">
+            System Determination Rationale
           </div>
-          <p className="text-base text-slate-200 leading-relaxed font-sans italic border-l-4 border-amber-500 pl-4 py-1">
-            "{data?.explanation || 'The submitted evidence is visually consistent with the original scene and shows substantial reduction of the reported stagnant-water area.'}"
+          <p className="text-xs text-slate-700 leading-relaxed font-sans italic pl-3 border-l-2 border-slate-900 py-0.5">
+            "{data?.explanation || 'The submitted evidence is visually consistent with the original scene and shows substantial reduction of the reported defect.'}"
           </p>
         </div>
 
-        {/* INTERACTIVE REVIEWER ACTION BUTTONS */}
-        <div className="rounded-3xl bg-slate-900 border border-slate-800 p-6 md:p-8 space-y-4 shadow-xl">
-          <div className="text-xs font-black uppercase tracking-widest text-slate-400 mb-2">
-            JUDGING DECISION CONTROLS
+        {/* REVIEWER ACTION BUTTONS */}
+        <div className="civic-card p-5 space-y-3">
+          <div className="text-[11px] font-mono font-bold uppercase tracking-wider text-slate-400">
+            Auditor Simulation Controls
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 font-mono font-bold text-sm">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
             <button
               onClick={() => handleReviewAction('APPROVE')}
-              className="py-4 px-6 rounded-2xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 shadow-xl shadow-emerald-500/20 transition-all flex items-center justify-center gap-2 transform active:scale-98 uppercase tracking-wider"
+              className="btn-primary justify-center text-xs py-2.5"
             >
-              <CheckCircle2 className="w-5 h-5" />
-              [APPROVE]
+              <CheckCircle2 className="w-4 h-4" />
+              <span>Verify Closure</span>
             </button>
 
             <button
               onClick={() => handleReviewAction('REQUEST_REVERIFICATION')}
-              className="py-4 px-6 rounded-2xl bg-amber-500 hover:bg-amber-400 text-slate-950 shadow-xl shadow-amber-500/20 transition-all flex items-center justify-center gap-2 transform active:scale-98 uppercase tracking-wider"
+              className="btn-secondary justify-center text-xs py-2.5"
             >
-              <AlertTriangle className="w-5 h-5" />
-              [REQUEST RE-VERIFICATION]
+              <AlertTriangle className="w-4 h-4 text-amber-600" />
+              <span>Request Re-Inspection</span>
             </button>
 
             <button
               onClick={() => handleReviewAction('REOPEN')}
-              className="py-4 px-6 rounded-2xl bg-rose-600 hover:bg-rose-500 text-white shadow-xl shadow-rose-600/20 transition-all flex items-center justify-center gap-2 transform active:scale-98 uppercase tracking-wider"
+              className="btn-secondary justify-center text-xs py-2.5"
             >
-              <RotateCcw className="w-5 h-5" />
-              [REOPEN TICKET]
+              <RotateCcw className="w-4 h-4 text-rose-600" />
+              <span>Reopen Ticket</span>
             </button>
           </div>
         </div>
@@ -372,3 +373,5 @@ export const EvidenceInvestigationDemo: React.FC = () => {
     </div>
   );
 };
+
+export default EvidenceInvestigationDemo;

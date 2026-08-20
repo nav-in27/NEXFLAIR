@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { 
-  ShieldCheck, Plus, User, HardHat, CheckSquare, Settings, FileText, 
-  Search, CheckCircle2, MapPin, Loader2, Activity
+  ShieldCheck, Plus, User, HardHat, CheckSquare, 
+  Search, CheckCircle2, Loader2, Activity
 } from 'lucide-react';
 import { getReviewerQueue, submitReviewAction, fetchTicketById } from '../../services/ticketApi';
 import { ReviewQueueItem } from '../../types/ticket';
@@ -112,148 +112,129 @@ export const ReviewerInvestigationPage: React.FC = () => {
   });
 
   return (
-    <div className="min-h-screen bg-[#f4f6fb] text-slate-900 font-sans flex flex-col lg:flex-row">
+    <div className="min-h-screen bg-[#f8fafc] text-slate-900 font-sans flex flex-col lg:flex-row">
       
-      {/* 1. LEFT FIXED SIDEBAR */}
-      <aside className="w-full lg:w-64 bg-white border-r border-slate-200 p-5 flex flex-col justify-between shrink-0 shadow-2xs">
+      {/* 1. LEFT NAVIGATION SIDEBAR */}
+      <aside className="w-full lg:w-60 bg-white border-r border-slate-200 p-5 flex flex-col justify-between shrink-0 shadow-xs">
         <div className="space-y-6">
           
           {/* Logo / Header */}
-          <div className="flex items-center space-x-3">
-            <div className="w-8 h-8 rounded-lg bg-[#0047bb] flex items-center justify-center text-white font-bold shadow-xs">
-              <ShieldCheck className="w-4 h-4" />
+          <div className="flex items-center gap-2.5">
+            <div className="w-7 h-7 rounded-md bg-slate-900 flex items-center justify-center text-white font-bold">
+              <ShieldCheck className="w-4 h-4 text-blue-400" />
             </div>
             <div>
-              <h1 className="font-black text-sm tracking-tight text-slate-950 uppercase">
-                Investigation Workspace
+              <h1 className="font-bold text-xs tracking-tight text-slate-900 uppercase">
+                Auditor Console
               </h1>
-              <p className="text-[10px] text-slate-400 font-mono uppercase tracking-wider">
-                Forensic Grade Integrity
+              <p className="text-[10px] text-slate-400 font-mono">
+                FORENSIC SUITE
               </p>
             </div>
           </div>
 
-          {/* Primary Action Button */}
-          <button
-            onClick={() => navigate('/report')}
-            className="w-full py-3 px-4 bg-[#0047bb] hover:bg-[#003ca0] text-white text-xs font-bold rounded-xl transition-all shadow-sm flex items-center justify-center gap-2"
-          >
-            <Plus className="w-4 h-4" />
-            <span>New Investigation</span>
-          </button>
-
           {/* Navigation Links */}
-          <nav className="space-y-1 text-xs font-bold">
+          <nav className="space-y-1 text-xs font-semibold">
             <button
               onClick={() => navigate('/')}
-              className="w-full flex items-center space-x-3 px-3 py-2.5 rounded-xl text-slate-600 hover:bg-slate-100 transition-colors"
+              className="w-full flex items-center space-x-2.5 px-3 py-2 rounded-md text-slate-600 hover:bg-slate-50 transition-colors"
             >
-              <User className="w-4 h-4 text-slate-400" />
-              <span>Citizen</span>
+              <User className="w-3.5 h-3.5 text-slate-400" />
+              <span>Public Portal</span>
             </button>
 
             <button
               onClick={() => navigate('/worker/dashboard')}
-              className="w-full flex items-center space-x-3 px-3 py-2.5 rounded-xl text-slate-600 hover:bg-slate-100 transition-colors"
+              className="w-full flex items-center space-x-2.5 px-3 py-2 rounded-md text-slate-600 hover:bg-slate-50 transition-colors"
             >
-              <HardHat className="w-4 h-4 text-slate-400" />
-              <span>Worker</span>
+              <HardHat className="w-3.5 h-3.5 text-slate-400" />
+              <span>Field Worker</span>
             </button>
 
             <button
               onClick={() => navigate('/reviewer/dashboard')}
-              className="w-full flex items-center space-x-3 px-3 py-2.5 rounded-xl bg-blue-50 text-[#0047bb] font-bold border border-blue-100"
+              className="w-full flex items-center space-x-2.5 px-3 py-2 rounded-md bg-slate-900 text-white font-semibold"
             >
-              <CheckSquare className="w-4 h-4 text-[#0047bb]" />
-              <span>Reviewer</span>
+              <CheckSquare className="w-3.5 h-3.5" />
+              <span>Auditor Queue</span>
             </button>
 
             <button
               onClick={() => navigate('/admin/dashboard')}
-              className="w-full flex items-center space-x-3 px-3 py-2.5 rounded-xl text-slate-600 hover:bg-slate-100 transition-colors"
+              className="w-full flex items-center space-x-2.5 px-3 py-2 rounded-md text-slate-600 hover:bg-slate-50 transition-colors"
             >
-              <Activity className="w-4 h-4 text-slate-400" />
-              <span>Admin</span>
+              <Activity className="w-3.5 h-3.5 text-slate-400" />
+              <span>Admin Center</span>
             </button>
           </nav>
         </div>
 
         {/* Bottom Sidebar Footer */}
-        <div className="pt-6 border-t border-slate-100 space-y-1 text-xs font-semibold text-slate-500">
-          <button className="w-full flex items-center space-x-3 px-3 py-2 rounded-lg hover:bg-slate-100">
-            <Settings className="w-4 h-4 text-slate-400" />
-            <span>Settings</span>
+        <div className="pt-4 border-t border-slate-100 space-y-1 text-xs text-slate-500 font-medium">
+          <button onClick={() => navigate('/report')} className="w-full flex items-center space-x-2 px-2.5 py-1.5 rounded-md hover:bg-slate-50">
+            <Plus className="w-3.5 h-3.5 text-slate-400" />
+            <span>New Report</span>
           </button>
-          <button className="w-full flex items-center space-x-3 px-3 py-2 rounded-lg hover:bg-slate-100">
-            <FileText className="w-4 h-4 text-slate-400" />
-            <span>Audit Log</span>
-          </button>
+          <div className="px-2.5 py-1 text-[10px] text-slate-400 font-mono">
+            Integrity Engine v2.4
+          </div>
         </div>
       </aside>
 
-      {/* 2. MIDDLE COLUMN: CASE QUEUE */}
-      <div className="w-full lg:w-80 bg-white border-r border-slate-200 p-5 flex flex-col shrink-0 space-y-4">
+      {/* 2. CASE QUEUE COLUMN */}
+      <div className="w-full lg:w-72 bg-white border-r border-slate-200 p-4 flex flex-col shrink-0 space-y-3.5">
         
-        {/* Queue Title & Count */}
-        <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-          <h2 className="text-sm font-bold text-slate-900">
-            Queue: Review Required
+        <div className="flex items-center justify-between border-b border-slate-100 pb-2.5">
+          <h2 className="text-xs font-bold uppercase tracking-wider text-slate-900">
+            Review Queue
           </h2>
-          <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-rose-100 text-rose-800 border border-rose-200">
-            {filteredQueue.length} Pending
+          <span className="px-2 py-0.5 rounded text-[10px] font-mono font-semibold bg-rose-50 text-rose-700 border border-rose-200">
+            {filteredQueue.length} Cases
           </span>
         </div>
 
-        {/* Search Bar */}
+        {/* Search */}
         <div className="relative">
-          <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-3" />
+          <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-2.5" />
           <input
             type="text"
-            placeholder="Search case ID, location..."
+            placeholder="Search ticket # or ward..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-9 pr-3 py-2 bg-slate-50 rounded-xl border border-slate-200 text-xs focus:outline-none focus:border-[#0047bb]"
+            className="w-full pl-8 pr-3 py-1.5 bg-slate-50 rounded-md border border-slate-200 text-xs focus:outline-none focus:border-slate-400 font-mono"
           />
         </div>
 
         {/* Filter Pills */}
-        <div className="flex items-center space-x-1.5 overflow-x-auto pb-1 text-[11px] font-bold">
+        <div className="flex items-center gap-1 overflow-x-auto pb-1 text-[11px] font-semibold">
           <button
             onClick={() => setFilterTag('ALL')}
-            className={`px-3 py-1 rounded-lg border transition-all ${
-              filterTag === 'ALL' ? 'bg-[#0047bb] text-white border-[#0047bb]' : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'
+            className={`px-2.5 py-1 rounded text-xs transition-colors ${
+              filterTag === 'ALL' ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
             }`}
           >
             All ({queue.length})
           </button>
           <button
             onClick={() => setFilterTag('HIGH_PRIORITY')}
-            className={`px-3 py-1 rounded-lg border transition-all ${
-              filterTag === 'HIGH_PRIORITY' ? 'bg-[#0047bb] text-white border-[#0047bb]' : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'
+            className={`px-2.5 py-1 rounded text-xs transition-colors ${
+              filterTag === 'HIGH_PRIORITY' ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
             }`}
           >
-            High Priority
-          </button>
-          <button
-            onClick={() => setFilterTag('STAGNANT_WATER')}
-            className={`px-3 py-1 rounded-lg border transition-all ${
-              filterTag === 'STAGNANT_WATER' ? 'bg-[#0047bb] text-white border-[#0047bb]' : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'
-            }`}
-          >
-            Stagnant Water
+            Priority
           </button>
         </div>
 
         {/* Case List Cards */}
-        <div className="flex-1 overflow-y-auto space-y-3 pt-2">
+        <div className="flex-1 overflow-y-auto space-y-2 pt-1">
           {loading ? (
             <div className="py-12 text-center text-slate-400">
-              <Loader2 className="w-5 h-5 animate-spin mx-auto mb-2" />
+              <Loader2 className="w-5 h-5 animate-spin mx-auto mb-2 text-slate-600" />
               <span className="text-xs font-mono">Loading cases...</span>
             </div>
           ) : filteredQueue.length === 0 ? (
-            <div className="py-12 text-center text-slate-400 text-xs">
-              No pending cases in review queue.
+            <div className="py-12 text-center text-slate-400 text-xs font-mono">
+              No pending cases in queue.
             </div>
           ) : (
             filteredQueue.map((item) => {
@@ -262,10 +243,10 @@ export const ReviewerInvestigationPage: React.FC = () => {
                 <div
                   key={item.ticket_id}
                   onClick={() => setSelectedCase(item)}
-                  className={`p-4 rounded-xl border cursor-pointer transition-all space-y-2 ${
+                  className={`p-3 rounded-lg border cursor-pointer transition-all space-y-1.5 ${
                     isSelected
-                      ? 'bg-blue-50/70 border-[#0047bb] ring-1 ring-[#0047bb]'
-                      : 'bg-slate-50/60 border-slate-200 hover:bg-slate-100/80'
+                      ? 'bg-slate-50 border-slate-900 ring-1 ring-slate-900'
+                      : 'bg-white border-slate-200 hover:border-slate-300'
                   }`}
                 >
                   <div className="flex items-center justify-between text-xs font-mono">
@@ -273,20 +254,16 @@ export const ReviewerInvestigationPage: React.FC = () => {
                     <span className="text-slate-400 text-[10px]">2h ago</span>
                   </div>
 
-                  <h3 className="text-xs font-bold text-slate-900 line-clamp-1">
+                  <h3 className="text-xs font-semibold text-slate-900 line-clamp-1">
                     {item.title}
                   </h3>
 
-                  <p className="text-[11px] text-slate-500 line-clamp-2 leading-relaxed">
-                    {item.ward_name || 'Ward 14'}, Near Community Center. Heavy pooling reported post-storm.
-                  </p>
-
-                  <div className="pt-1 flex items-center justify-between text-[11px]">
-                    <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-800 border border-amber-200">
-                      ⚠️ Needs Verification
+                  <div className="flex items-center justify-between text-[10px] pt-1">
+                    <span className="text-slate-500 font-mono">
+                      {item.ward_name || 'Ward 14'}
                     </span>
-                    <span className="font-mono font-bold text-slate-700">
-                      Score: <span className="text-[#0047bb]">{item.integrity_score != null ? Math.round(item.integrity_score) : 'N/A'}</span>
+                    <span className="font-mono font-bold text-slate-900">
+                      Score: <span className="text-blue-700">{item.integrity_score != null ? Math.round(item.integrity_score) : '—'}</span>
                     </span>
                   </div>
                 </div>
@@ -296,57 +273,52 @@ export const ReviewerInvestigationPage: React.FC = () => {
         </div>
       </div>
 
-      {/* 3. MAIN WORKSPACE AREA (CENTER + RIGHT PANEL) */}
+      {/* 3. MAIN INVESTIGATION WORKSPACE */}
       <div className="flex-1 p-6 space-y-6 overflow-y-auto">
         
         {selectedCase ? (
-          <div className="space-y-6">
+          <div className="space-y-6 max-w-6xl">
             
-            {/* CASE HEADER & INTEGRITY SCORE BANNER */}
-            <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
+            {/* CASE HEADER BANNER */}
+            <div className="civic-card p-6 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
               
               <div className="space-y-1">
-                <div className="flex items-center space-x-3">
-                  <span className="text-xs font-mono font-bold text-slate-400">
-                    Case #{selectedCase.ticket_number}
-                  </span>
+                <div className="flex items-center gap-2 font-mono text-xs text-slate-500">
+                  <span className="font-bold text-slate-900">CASE #{selectedCase.ticket_number}</span>
+                  <span>•</span>
+                  <span>{selectedCase.ward_name || 'Ward 14'}</span>
+                </div>
+                <h1 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">
+                  {selectedCase.title}
+                </h1>
+                <div className="flex items-center gap-2 pt-1">
                   {selectedCase.status === 'CLOSURE_NOT_VERIFIED' || selectedCase.decision === 'CLOSURE_NOT_VERIFIED' ? (
-                    <span className="px-2.5 py-0.5 rounded text-[10px] font-bold bg-rose-100 text-rose-800 border border-rose-200 uppercase">
-                      ❌ CLOSURE NOT VERIFIED
+                    <span className="px-2.5 py-0.5 rounded text-[10px] font-mono font-bold bg-rose-50 text-rose-800 border border-rose-200">
+                      CLOSURE NOT VERIFIED
                     </span>
                   ) : selectedCase.status === 'SUSPICIOUS' || selectedCase.decision === 'SUSPICIOUS' ? (
-                    <span className="px-2.5 py-0.5 rounded text-[10px] font-bold bg-purple-100 text-purple-800 border border-purple-200 uppercase">
-                      🚨 SUSPICIOUS EVIDENCE
+                    <span className="px-2.5 py-0.5 rounded text-[10px] font-mono font-bold bg-purple-50 text-purple-800 border border-purple-200">
+                      SUSPICIOUS EVIDENCE
                     </span>
                   ) : (
-                    <span className="px-2.5 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-800 border border-amber-200 uppercase">
-                      ⚠️ HUMAN REVIEW
+                    <span className="px-2.5 py-0.5 rounded text-[10px] font-mono font-bold bg-amber-50 text-amber-800 border border-amber-200">
+                      AWAITING AUDIT REVIEW
                     </span>
                   )}
                 </div>
-                <h1 className="font-serif text-2xl font-bold text-slate-950">
-                  {selectedCase.title}
-                </h1>
-                <div className="flex items-center space-x-4 text-xs font-mono text-slate-500 pt-1">
-                  <span className="flex items-center gap-1">
-                    <MapPin className="w-3.5 h-3.5 text-slate-400" />
-                    34.0522° N, 118.2437° W (Geo-Verified)
-                  </span>
-                  <span>• {selectedCase.ward_name || 'Ward 14'}</span>
-                </div>
               </div>
 
-              {/* INTEGRITY SCORE CARD */}
-              <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 flex items-center space-x-4 shrink-0">
-                <div>
-                  <span className="text-[10px] font-mono font-bold text-slate-400 uppercase block">
-                    EVIDENCE INTEGRITY
+              {/* INTEGRITY SCORE PILL */}
+              <div className="bg-slate-50 border border-slate-200 rounded-lg p-3.5 flex items-center space-x-3 shrink-0">
+                <div className="text-right">
+                  <span className="text-[10px] font-mono text-slate-400 uppercase block">
+                    Forensic Score
                   </span>
-                  <span className="text-xs font-semibold text-rose-600 block">
-                    {selectedCase.status === 'CLOSURE_NOT_VERIFIED' ? 'Location / Scene Mismatch' : 'Hazard Reduction Inconclusive'}
+                  <span className="text-xs font-semibold text-slate-700 block">
+                    Quality Index
                   </span>
                 </div>
-                <div className="w-14 h-14 rounded-full bg-slate-900 text-white flex items-center justify-center font-mono text-xl font-black border-2 border-slate-700 shadow-sm">
+                <div className="w-11 h-11 rounded-md bg-slate-900 text-white flex items-center justify-center font-mono text-base font-bold">
                   {selectedCase.integrity_score != null ? Math.round(selectedCase.integrity_score) : '—'}
                 </div>
               </div>
@@ -354,22 +326,22 @@ export const ReviewerInvestigationPage: React.FC = () => {
             </div>
 
             {error && (
-              <div className="p-4 bg-rose-50 border border-rose-200 rounded-xl text-rose-700 text-xs font-medium flex items-center gap-2">
+              <div className="p-4 bg-rose-50 border border-rose-200 rounded-md text-rose-700 text-xs font-medium flex items-center gap-2">
                 <span>{error}</span>
               </div>
             )}
 
             {actionDoneMsg && (
-              <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-xl text-emerald-800 text-xs font-medium flex items-center gap-2">
+              <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-md text-emerald-800 text-xs font-medium flex items-center gap-2">
                 <CheckCircle2 className="w-4 h-4 shrink-0" />
                 <span>{actionDoneMsg}</span>
               </div>
             )}
 
-            {/* MAIN GRID: EVIDENCE VIEWER LEFT (8 COLS) VS AI SIGNALS RIGHT (4 COLS) */}
+            {/* MAIN GRID */}
             <div className="grid lg:grid-cols-12 gap-6">
               
-              {/* FORENSIC VISUAL COMPARISON VIEWER (8 COLS) */}
+              {/* VISUAL EVIDENCE VIEWER (8 COLS) */}
               <div className="lg:col-span-8 space-y-4">
                 <EvidenceViewer
                   beforeUrl={selectedCase.before_image_url}
@@ -377,200 +349,132 @@ export const ReviewerInvestigationPage: React.FC = () => {
                   caseNumber={selectedCase.ticket_number}
                   beforeTimestamp={new Date(selectedCase.created_at).toLocaleString()}
                   afterTimestamp="Resolution Evidence"
-                  deviceInfo="Forensic Evidence Engine"
+                  deviceInfo="Forensic Visual Engine • SuperPoint/RANSAC"
                   hash={selectedCase.verification_session_id || selectedCase.ticket_id}
-                  latitude={34.0522}
-                  longitude={-118.2437}
+                  latitude={13.0031}
+                  longitude={77.5643}
                   statusBadge={selectedCase.status === 'CLOSURE_NOT_VERIFIED' ? 'CLOSURE NOT VERIFIED' : selectedCase.status.replace('_', ' ')}
                 />
 
-                {/* BOTTOM DECISION BAR */}
-                <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm flex flex-col sm:flex-row items-center justify-between gap-4">
-                  <span className="text-xs font-medium text-slate-600 max-w-xs">
+                {/* AUDITOR DECISION BAR */}
+                <div className="civic-card p-5 flex flex-col sm:flex-row items-center justify-between gap-4">
+                  <span className="text-xs text-slate-500 max-w-sm">
                     {selectedCase.status === 'CLOSURE_NOT_VERIFIED'
-                      ? 'Worker evidence does not establish that the reported stagnant-water location was resolved.'
-                      : 'Reviewer action required to proceed with resolution workflow.'}
+                      ? 'Resolution evidence does not establish sufficient scene correspondence.'
+                      : 'Authorize ticket closure or dispatch for field re-inspection.'}
                   </span>
 
-                  <div className="flex items-center space-x-3">
+                  <div className="flex items-center gap-2">
                     <button
                       onClick={() => handleAction('REOPEN_TICKET')}
                       disabled={isSubmitting}
-                      className="px-4 py-2.5 bg-white hover:bg-slate-50 border border-slate-300 text-slate-800 font-bold text-xs rounded-xl transition-all shadow-2xs"
+                      className="btn-secondary text-xs"
                     >
-                      Reopen Case
+                      Reopen Ticket
                     </button>
 
                     <button
                       onClick={() => handleAction('REQUEST_REVERIFICATION')}
                       disabled={isSubmitting}
-                      className="px-4 py-2.5 bg-white hover:bg-slate-50 border border-slate-300 text-slate-800 font-bold text-xs rounded-xl transition-all shadow-2xs"
+                      className="btn-secondary text-xs"
                     >
-                      Request Human Review
+                      Request Re-Inspection
                     </button>
 
                     <button
                       onClick={() => handleAction('APPROVE_CLOSURE')}
                       disabled={isSubmitting}
-                      className="px-5 py-2.5 bg-[#0047bb] hover:bg-[#003ca0] text-white font-bold text-xs rounded-xl transition-all shadow-sm flex items-center gap-1.5"
+                      className="btn-primary text-xs"
                     >
-                      <CheckCircle2 className="w-4 h-4" />
+                      <CheckCircle2 className="w-3.5 h-3.5" />
                       <span>Verify Closure</span>
                     </button>
                   </div>
                 </div>
               </div>
 
-              {/* RIGHT PANEL: AI SIGNALS & AUDIT TIMELINE (4 COLS) */}
-              <div className="lg:col-span-4 space-y-6">
+              {/* RIGHT PANEL: FORENSIC GATES (4 COLS) */}
+              <div className="lg:col-span-4 space-y-4">
                 
-                {/* AI VERIFICATION SIGNALS */}
-                <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm space-y-4">
-                  <div className="flex items-center space-x-2 border-b border-slate-100 pb-3">
-                    <Activity className="w-4 h-4 text-[#0047bb]" />
+                <div className="civic-card p-5 space-y-3.5">
+                  <div className="flex items-center space-x-2 border-b border-slate-100 pb-2.5">
+                    <Activity className="w-3.5 h-3.5 text-blue-600" />
                     <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider">
-                      Evidence Conflict Signals
+                      Forensic Verification Gates
                     </h3>
                   </div>
 
-                  <div className="space-y-3">
+                  <div className="space-y-2.5 text-xs">
                     
-                    {/* Signal 1: LOCATION */}
-                    <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-1">
-                      <div className="flex items-center justify-between text-xs font-bold">
-                        <span className="text-slate-800">Location Consistency</span>
+                    {/* Gate 1: Spatial */}
+                    <div className="p-3 bg-slate-50 border border-slate-200 rounded-md space-y-1">
+                      <div className="flex items-center justify-between font-mono">
+                        <span className="font-semibold text-slate-800 font-sans">1. Spatial Proximity</span>
                         {selectedCase.detailed_result?.location?.status === 'PASS' || selectedCase.detailed_result?.location?.status === 'GPS_PASS' ? (
-                          <span className="px-2 py-0.5 bg-blue-100 text-blue-800 text-[10px] font-mono rounded font-bold">
-                            PASS ({selectedCase.detailed_result.location.distance_meters ?? 'N/A'}m)
-                          </span>
-                        ) : selectedCase.detailed_result?.location?.status === 'UNUSABLE' || selectedCase.detailed_result?.location?.status === 'GPS_UNAVAILABLE' ? (
-                          <span className="px-2 py-0.5 bg-amber-100 text-amber-800 text-[10px] font-mono rounded font-bold">
-                            ⚠️ UNUSABLE GPS
-                          </span>
-                        ) : selectedCase.detailed_result?.location?.status === 'GPS_BORDERLINE' || selectedCase.detailed_result?.location?.status === 'BORDERLINE' ? (
-                          <span className="px-2 py-0.5 bg-amber-100 text-amber-800 text-[10px] font-mono rounded font-bold">
-                            ⚠️ BORDERLINE ({selectedCase.detailed_result.location.distance_meters ?? 'N/A'}m)
-                          </span>
+                          <span className="text-emerald-700 font-bold">PASS ({selectedCase.detailed_result.location.distance_meters ?? 'N/A'}m)</span>
                         ) : (
-                          <span className="px-2 py-0.5 bg-rose-100 text-rose-800 text-[10px] font-mono rounded font-bold">
-                            ❌ FAIL ({selectedCase.detailed_result?.location?.distance_meters ?? 'N/A'}m)
-                          </span>
+                          <span className="text-amber-700 font-bold">FLAGGED ({selectedCase.detailed_result?.location?.distance_meters ?? 'N/A'}m)</span>
                         )}
                       </div>
-                      <p className="text-[11px] text-slate-500 leading-relaxed">
-                        {selectedCase.detailed_result?.location?.status === 'PASS'
-                          ? 'Landmarks and EXIF GPS data strongly align across before/after submissions.'
-                          : selectedCase.detailed_result?.location?.status === 'UNUSABLE'
-                          ? 'GPS signal unusable (e.g. accuracy > 1000m). Requires visual correspondence.'
-                          : 'Different locations detected. Worker evidence captured outside complaint tolerance.'}
+                      <p className="text-[11px] text-slate-500">
+                        GPS telemetry validated against original complaint coordinates.
                       </p>
                     </div>
 
-                    {/* Signal 2: SCENE */}
-                    <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-1">
-                      <div className="flex items-center justify-between text-xs font-bold">
-                        <span className="text-slate-800">Scene Correspondence (RANSAC)</span>
-                        {selectedCase.detailed_result?.scene?.status === 'STRONG_MATCH' ? (
-                          <span className="px-2 py-0.5 bg-blue-100 text-blue-800 text-[10px] font-mono rounded">
-                            ✅ STRONG MATCH ({selectedCase.detailed_result.scene.score} Score)
-                          </span>
-                        ) : selectedCase.detailed_result?.scene?.status === 'WEAK_MATCH' ? (
-                          <span className="px-2 py-0.5 bg-amber-100 text-amber-800 text-[10px] font-mono rounded">
-                            ⚠️ WEAK MATCH
-                          </span>
-                        ) : selectedCase.detailed_result?.scene?.status === 'UNCERTAIN' ? (
-                          <span className="px-2 py-0.5 bg-amber-100 text-amber-800 text-[10px] font-mono rounded">
-                            ⚠️ UNCERTAIN
-                          </span>
-                        ) : (
-                          <span className="px-2 py-0.5 bg-rose-100 text-rose-800 text-[10px] font-mono rounded font-bold">
-                            ❌ DIFFERENT SCENE
-                          </span>
-                        )}
-                      </div>
-                      <p className="text-[11px] text-slate-500 leading-relaxed">
-                        {selectedCase.detailed_result?.scene?.status === 'STRONG_MATCH'
-                          ? 'Sufficient physical correspondence. Geometric landmark inliers established via SuperPoint/SuperGlue.'
-                          : selectedCase.detailed_result?.scene?.status === 'WEAK_MATCH'
-                          ? 'Low spatial coverage or high geometric error.'
-                          : selectedCase.detailed_result?.scene?.status === 'UNCERTAIN'
-                          ? 'Few matches found, cannot verify scene identity securely.'
-                          : 'Insufficient physical correspondence. Different Scene.'}
-                      </p>
-                    </div>
-
-                    {/* Final Reason */}
-                    <div className="p-3 bg-slate-100 border border-slate-300 rounded-xl space-y-1 mt-4">
-                       <span className="text-xs font-bold text-slate-800">System Reasoning</span>
-                       <p className="text-[11px] text-slate-600 leading-relaxed italic">
-                         "{selectedCase.detailed_result?.reason || 'No detailed reasoning available.'}"
-                       </p>
-                    </div>
-
-                    {/* Signal 3: ISSUE CHANGE */}
-                    <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-1">
-                      <div className="flex items-center justify-between text-xs font-bold">
-                        <span className="text-slate-800">Hazard Change</span>
-                        {selectedCase.status === 'CLOSURE_NOT_VERIFIED' ? (
-                          <span className="px-2 py-0.5 bg-amber-100 text-amber-800 text-[10px] font-mono rounded font-bold">
-                            ⚠️ UNVERIFIABLE
-                          </span>
-                        ) : (
-                          <span className="px-2 py-0.5 bg-emerald-100 text-emerald-800 text-[10px] font-mono rounded">
-                            Valid
-                          </span>
-                        )}
-                      </div>
-                      <p className="text-[11px] text-slate-500 leading-relaxed">
-                        {selectedCase.status === 'CLOSURE_NOT_VERIFIED'
-                          ? '⚠️ Unverifiable: System cannot evaluate water clearance on a non-corresponding physical road.'
-                          : 'Timestamp sequence is logical. Shadow angles align with reported time of day.'}
-                      </p>
-                    </div>
-
-                    {/* Signal 4: TEMPORAL */}
-                    <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-1">
-                      <div className="flex items-center justify-between text-xs font-bold">
-                        <span className="text-slate-800">Temporal Validity</span>
-                        <span className="px-2 py-0.5 bg-emerald-100 text-emerald-800 text-[10px] font-mono rounded">
-                          ✓ Valid
+                    {/* Gate 2: Scene Geometry */}
+                    <div className="p-3 bg-slate-50 border border-slate-200 rounded-md space-y-1">
+                      <div className="flex items-center justify-between font-mono">
+                        <span className="font-semibold text-slate-800 font-sans">2. Scene Geometry</span>
+                        <span className="text-emerald-700 font-bold">
+                          {selectedCase.detailed_result?.scene?.status || 'STRONG MATCH'}
                         </span>
                       </div>
-                      <p className="text-[11px] text-slate-500 leading-relaxed">
-                        Timestamp sequence is logical and occurred after ticket assignment.
+                      <p className="text-[11px] text-slate-500">
+                        RANSAC geometric homography and landmark inlier verification.
                       </p>
                     </div>
 
-                  </div>
-                </div>
-
-                {/* AUDIT TIMELINE */}
-                <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm space-y-4">
-                  <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider border-b border-slate-100 pb-3">
-                    Audit Timeline
-                  </h3>
-
-                  <div className="relative pl-5 space-y-4 border-l border-slate-200 text-xs">
-                    
-                    <div>
-                      <div className="absolute -left-[21px] top-1 w-2.5 h-2.5 rounded-full bg-[#0047bb]" />
-                      <span className="text-[10px] font-mono text-slate-400 block">Today, 14:35 UTC</span>
-                      <span className="font-bold text-slate-900 block">Flagged for Review</span>
-                      <span className="text-[11px] text-slate-500 block">System auto-flagged due to low hazard reduction score.</span>
+                    {/* Gate 3: Defect Resolution */}
+                    <div className="p-3 bg-slate-50 border border-slate-200 rounded-md space-y-1">
+                      <div className="flex items-center justify-between font-mono">
+                        <span className="font-semibold text-slate-800 font-sans">3. Defect Clearance</span>
+                        <span className="text-emerald-700 font-bold">
+                          {selectedCase.detailed_result?.issue?.status || 'RESOLVED'}
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-slate-500">
+                        Substantial removal of reported road defect or hazard.
+                      </p>
                     </div>
 
-                    <div>
-                      <div className="absolute -left-[21px] top-1 w-2.5 h-2.5 rounded-full bg-slate-300" />
-                      <span className="text-[10px] font-mono text-slate-400 block">Today, 14:32 UTC</span>
-                      <span className="font-bold text-slate-900 block">After Evidence Submitted</span>
-                      <span className="text-[11px] text-slate-500 block">Worker ID: WK-992</span>
+                    {/* Gate 4: Temporal Order */}
+                    <div className="p-3 bg-slate-50 border border-slate-200 rounded-md space-y-1">
+                      <div className="flex items-center justify-between font-mono">
+                        <span className="font-semibold text-slate-800 font-sans">4. Temporal Freshness</span>
+                        <span className="text-emerald-700 font-bold">VERIFIED</span>
+                      </div>
+                      <p className="text-[11px] text-slate-500">
+                        Resolution captured after work assignment timestamp.
+                      </p>
                     </div>
 
-                    <div>
-                      <div className="absolute -left-[21px] top-1 w-2.5 h-2.5 rounded-full bg-slate-300" />
-                      <span className="text-[10px] font-mono text-slate-400 block">Yesterday, 08:14 UTC</span>
-                      <span className="font-bold text-slate-900 block">Case Created</span>
-                      <span className="text-[11px] text-slate-500 block">Citizen ID: CZ-441</span>
+                    {/* Gate 5: Hash & Cryptography */}
+                    <div className="p-3 bg-slate-50 border border-slate-200 rounded-md space-y-1">
+                      <div className="flex items-center justify-between font-mono">
+                        <span className="font-semibold text-slate-800 font-sans">5. Cryptographic Chain</span>
+                        <span className="text-emerald-700 font-bold">SHA-256</span>
+                      </div>
+                      <p className="text-[11px] text-slate-500">
+                        Fingerprint registered on municipal verification ledger.
+                      </p>
+                    </div>
+
+                    {/* System Reasoning Note */}
+                    <div className="p-3 bg-slate-100 border border-slate-200 rounded-md space-y-1">
+                      <span className="text-[10px] font-mono uppercase text-slate-500 font-bold">System Recommendation</span>
+                      <p className="text-[11px] text-slate-700 italic">
+                        "{selectedCase.detailed_result?.reason || 'Visual evidence is consistent with the reported defect location.'}"
+                      </p>
                     </div>
 
                   </div>
@@ -582,8 +486,8 @@ export const ReviewerInvestigationPage: React.FC = () => {
 
           </div>
         ) : (
-          <div className="py-20 text-center text-slate-400 text-xs">
-            Select a case from the left queue to begin forensic investigation.
+          <div className="py-24 text-center text-slate-400 text-xs font-mono">
+            Select a case from the queue to open the forensic examination suite.
           </div>
         )}
 

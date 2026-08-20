@@ -53,38 +53,38 @@ export const TicketListPage: React.FC = () => {
   const sampleWardId = tickets.length > 0 ? tickets[0].ward_id : 'ward-101-uuid';
 
   return (
-    <div className="w-full max-w-6xl mx-auto space-y-6 animate-fade-in">
+    <div className="w-full max-w-6xl mx-auto space-y-6 animate-fade-in p-4 sm:p-6">
       
       {/* Page Header */}
-      <div className="flex flex-wrap items-center justify-between gap-4 glass-panel p-6 rounded-2xl border border-slate-800">
+      <div className="flex flex-wrap items-center justify-between gap-4 civic-card p-6">
         <div className="space-y-1">
-          <div className="inline-flex items-center space-x-2 text-sky-400 text-xs font-mono font-semibold">
-            <FileText className="w-4 h-4" />
-            <span>Municipal Grievance Workflow</span>
+          <div className="inline-flex items-center space-x-1.5 text-slate-500 text-xs font-mono font-semibold">
+            <FileText className="w-3.5 h-3.5" />
+            <span>MUNICIPAL GRIEVANCE REGISTRY</span>
           </div>
-          <h1 className="text-2xl font-bold text-white tracking-tight">Civic Evidence Tickets</h1>
-          <p className="text-xs text-slate-400">
+          <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Civic Evidence Tickets</h1>
+          <p className="text-xs text-slate-500">
             {user?.role === 'FIELD_WORKER' 
-              ? 'Showing assigned tickets for field evidence collection.' 
-              : 'Complete civic evidence ticket pipeline.'}
+              ? 'Assigned tickets for field evidence capture and resolution.' 
+              : 'Master municipal registry of citizen complaints and forensic proofs.'}
           </p>
         </div>
 
-        <div className="flex items-center space-x-3">
+        <div className="flex items-center space-x-2.5">
           <button
             onClick={loadTickets}
-            className="p-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-400 hover:text-white transition-colors"
+            className="btn-secondary px-3"
             title="Refresh Tickets"
           >
-            <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
+            <RefreshCw className={`w-3.5 h-3.5 ${isLoading ? 'animate-spin' : ''}`} />
           </button>
 
           {user?.role === 'ADMIN' && (
             <button
               onClick={() => setShowCreateModal(true)}
-              className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-sky-500 to-indigo-600 hover:from-sky-400 hover:to-indigo-500 text-white font-bold text-xs shadow-lg shadow-sky-500/20 transition-all flex items-center space-x-1.5"
+              className="btn-primary"
             >
-              <Plus className="w-4 h-4" />
+              <Plus className="w-3.5 h-3.5" />
               <span>Log Ticket</span>
             </button>
           )}
@@ -92,27 +92,27 @@ export const TicketListPage: React.FC = () => {
       </div>
 
       {/* Filters & Search */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
         
         {/* Search */}
         <div className="sm:col-span-2 relative">
-          <Search className="w-4 h-4 absolute left-3.5 top-3 text-slate-500" />
+          <Search className="w-3.5 h-3.5 absolute left-3 top-3 text-slate-400" />
           <input
             type="text"
-            placeholder="Search by ticket ref, title, or complaint type..."
+            placeholder="Search by ticket #, title, or category..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-xs text-white placeholder-slate-600 focus:outline-none focus:border-sky-500 font-mono"
+            className="civic-input pl-9 text-xs font-mono"
           />
         </div>
 
         {/* Status Filter */}
         <div className="relative">
-          <Filter className="w-4 h-4 absolute left-3.5 top-3 text-slate-500" />
+          <Filter className="w-3.5 h-3.5 absolute left-3 top-3 text-slate-400" />
           <select
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
-            className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-xs text-white font-mono focus:outline-none focus:border-sky-500"
+            className="civic-input pl-9 text-xs font-mono"
           >
             <option value="ALL">All Statuses</option>
             <option value="OPEN">OPEN</option>
@@ -130,7 +130,7 @@ export const TicketListPage: React.FC = () => {
 
       {/* Error Alert */}
       {errorMsg && (
-        <div className="p-4 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-300 text-xs flex items-center space-x-2">
+        <div className="p-3.5 rounded-md bg-rose-50 border border-rose-200 text-rose-700 text-xs flex items-center space-x-2">
           <AlertCircle className="w-4 h-4 flex-shrink-0" />
           <span>{errorMsg}</span>
         </div>
@@ -138,35 +138,41 @@ export const TicketListPage: React.FC = () => {
 
       {/* Ticket Table Component */}
       {isLoading ? (
-        <div className="p-12 text-center glass-panel rounded-2xl border border-slate-800">
-          <RefreshCw className="w-6 h-6 text-sky-400 animate-spin mx-auto mb-2" />
-          <p className="text-xs font-mono text-slate-400">Loading tickets from PostgreSQL database...</p>
+        <div className="civic-card p-12 text-center text-slate-400 font-mono text-xs">
+          Loading ticket repository...
         </div>
       ) : (
-        <TicketTable
-          tickets={filteredTickets}
-          onSelectTicket={(t) => setSelectedTicket(t)}
+        <TicketTable 
+          tickets={filteredTickets} 
+          onSelectTicket={(ticket) => setSelectedTicket(ticket)} 
         />
       )}
 
-      {/* Details Modal */}
+      {/* Modals */}
       {selectedTicket && (
         <TicketDetailsModal
           ticket={selectedTicket}
           onClose={() => setSelectedTicket(null)}
-          onRefresh={loadTickets}
+          onRefresh={() => {
+            setSelectedTicket(null);
+            loadTickets();
+          }}
         />
       )}
 
-      {/* Create Modal */}
       {showCreateModal && (
         <CreateTicketModal
           wardId={sampleWardId}
           onClose={() => setShowCreateModal(false)}
-          onRefresh={loadTickets}
+          onRefresh={() => {
+            setShowCreateModal(false);
+            loadTickets();
+          }}
         />
       )}
 
     </div>
   );
 };
+
+export default TicketListPage;

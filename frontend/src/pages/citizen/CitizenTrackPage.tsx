@@ -89,94 +89,104 @@ export const CitizenTrackPage: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-[#f9fafb] text-slate-900 font-sans pb-20">
+    <div className="min-h-screen bg-[#f8fafc] text-slate-900 font-sans pb-20">
       
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-8 space-y-8">
         
-        {/* SEARCH BAR TOP */}
-        <form onSubmit={handleSearchSubmit} className="max-w-xl mx-auto flex items-center gap-2">
-          <div className="relative flex-1">
-            <Search className="w-4 h-4 text-slate-400 absolute left-4 top-3.5" />
-            <input
-              type="text"
-              placeholder="Search Complaint # (e.g. MK-10482)"
-              value={searchInput}
-              onChange={(e) => setSearchInput(e.target.value)}
-              className="w-full pl-11 pr-4 py-3 bg-white rounded-xl border border-slate-200 text-sm focus:outline-none focus:border-[#0047bb] shadow-2xs"
-            />
-          </div>
-          <button
-            type="submit"
-            className="px-6 py-3 bg-[#0047bb] hover:bg-[#003ca0] text-white text-xs font-bold rounded-xl transition-all shadow-xs"
-          >
-            Track
-          </button>
-        </form>
+        {/* TOP SEARCH BAR */}
+        <div className="civic-card p-4 max-w-xl mx-auto">
+          <form onSubmit={handleSearchSubmit} className="flex items-center gap-2">
+            <div className="relative flex-1">
+              <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-3.5" />
+              <input
+                type="text"
+                placeholder="Enter Complaint Number (e.g. MK-10482)"
+                value={searchInput}
+                onChange={(e) => setSearchInput(e.target.value)}
+                className="civic-input pl-10"
+              />
+            </div>
+            <button
+              type="submit"
+              className="btn-primary shrink-0"
+            >
+              <span>Track</span>
+            </button>
+          </form>
+        </div>
 
         {loading ? (
           <div className="py-20 text-center space-y-3">
-            <Loader2 className="w-8 h-8 text-[#0047bb] animate-spin mx-auto" />
+            <Loader2 className="w-6 h-6 text-slate-700 animate-spin mx-auto" />
             <p className="text-xs text-slate-500 font-mono">Retrieving verification audit trail...</p>
           </div>
         ) : error ? (
-          <div className="max-w-md mx-auto p-6 bg-white border border-slate-200 rounded-2xl text-center space-y-3 shadow-sm">
+          <div className="max-w-md mx-auto civic-card p-6 text-center space-y-3">
             <AlertTriangle className="w-8 h-8 text-amber-500 mx-auto" />
             <h3 className="text-base font-bold text-slate-900">Complaint Not Found</h3>
             <p className="text-xs text-slate-500">{error}</p>
           </div>
         ) : ticketData ? (
-          <div className="space-y-8">
+          <div className="space-y-6">
             
-            {/* PAGE HEADER */}
-            <div className="space-y-2 border-b border-slate-200 pb-6">
-              <span className="text-xs font-bold font-mono text-slate-400 uppercase tracking-widest">
-                COMPLAINT #{ticketData.ticket_number}
-              </span>
-              <h1 className="font-serif text-3xl sm:text-4xl font-bold text-slate-950">
-                {ticketData.title}, {ticketData.ward_name || 'Ward 14'}
-              </h1>
-              <div className="pt-2 flex items-center gap-3">
-                <span className={`px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1.5 ${
+            {/* TICKET HEADER BAR */}
+            <div className="civic-card p-6 flex flex-wrap items-center justify-between gap-4">
+              <div className="space-y-1">
+                <div className="flex items-center gap-2 font-mono text-xs text-slate-500">
+                  <span className="font-bold text-slate-900">TICKET #{ticketData.ticket_number}</span>
+                  <span>•</span>
+                  <span>{ticketData.ward_name || 'Ward 14'}</span>
+                </div>
+                <h1 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">
+                  {ticketData.title}
+                </h1>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <span className={`px-3 py-1 rounded-md text-xs font-mono font-semibold flex items-center gap-1.5 ${
                   ['VERIFIED', 'CITIZEN_CONFIRMED', 'CLOSED'].includes(ticketData.status)
-                    ? 'bg-emerald-100 text-emerald-800 border border-emerald-200'
+                    ? 'bg-emerald-50 text-emerald-800 border border-emerald-200'
                     : ticketData.status === 'CITIZEN_DISPUTE'
-                    ? 'bg-rose-100 text-rose-800 border border-rose-200'
-                    : 'bg-amber-100 text-amber-800 border border-amber-200'
+                    ? 'bg-rose-50 text-rose-800 border border-rose-200'
+                    : 'bg-amber-50 text-amber-800 border border-amber-200'
                 }`}>
                   <CheckCircle2 className="w-3.5 h-3.5" />
-                  <span>Status: {ticketData.status.replace('_', ' ')}</span>
+                  <span>STATUS: {ticketData.status.replace('_', ' ')}</span>
                 </span>
               </div>
             </div>
 
             {feedbackMsg && (
-              <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-xl text-emerald-800 text-xs font-medium flex items-center gap-2">
+              <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-md text-emerald-800 text-xs font-medium flex items-center gap-2">
                 <CheckCircle2 className="w-4 h-4 shrink-0" />
                 <span>{feedbackMsg}</span>
               </div>
             )}
 
-            {/* MAIN CONTENT: RESOLUTION JOURNEY LEFT (4 COLS) VS VISUAL EVIDENCE RIGHT (8 COLS) */}
-            <div className="grid lg:grid-cols-12 gap-8 items-start">
+            {/* MAIN CONTENT GRID */}
+            <div className="grid lg:grid-cols-12 gap-6 items-start">
               
-              {/* LEFT: RESOLUTION JOURNEY TIMELINE */}
-              <div className="lg:col-span-4 bg-white border border-slate-200 rounded-2xl p-6 shadow-sm space-y-6">
-                <h3 className="text-sm font-bold text-slate-900 border-b border-slate-100 pb-3">
-                  Resolution Journey
-                </h3>
+              {/* LEFT: RESOLUTION TIMELINE (4 COLS) */}
+              <div className="lg:col-span-4 civic-card p-6 space-y-6">
+                <div className="border-b border-slate-100 pb-3">
+                  <h2 className="text-xs font-bold uppercase tracking-wider text-slate-700">
+                    Resolution Timeline
+                  </h2>
+                  <span className="text-[11px] text-slate-400 font-mono">Chain of custody logs</span>
+                </div>
 
-                <div className="relative pl-6 space-y-6 border-l-2 border-slate-200">
+                <div className="relative pl-5 space-y-6 border-l border-slate-200 text-xs">
                   
                   {/* Step 1: Reported */}
                   <div className="relative">
-                    <div className="absolute -left-[31px] top-0.5 w-4 h-4 rounded-full bg-[#0047bb] border-2 border-white ring-2 ring-blue-100 flex items-center justify-center text-[9px] text-white font-bold">
+                    <div className="absolute -left-[27px] top-0.5 w-3.5 h-3.5 rounded-full bg-slate-900 text-white flex items-center justify-center text-[8px] font-bold">
                       ✓
                     </div>
                     <div>
-                      <span className="text-[11px] font-mono text-slate-400 block">
+                      <span className="text-[10px] font-mono text-slate-400 block">
                         {new Date(ticketData.created_at).toLocaleDateString([], { month: 'short', day: 'numeric' })}, 09:14 AM
                       </span>
-                      <span className="text-xs font-bold text-slate-900 block mt-0.5">
+                      <span className="font-semibold text-slate-900 block mt-0.5">
                         Reported by Citizen
                       </span>
                     </div>
@@ -184,52 +194,50 @@ export const CitizenTrackPage: React.FC = () => {
 
                   {/* Step 2: Assigned */}
                   <div className="relative">
-                    <div className="absolute -left-[31px] top-0.5 w-4 h-4 rounded-full bg-[#0047bb] border-2 border-white ring-2 ring-blue-100 flex items-center justify-center text-[9px] text-white font-bold">
-                      ✓
+                    <div className={`absolute -left-[27px] top-0.5 w-3.5 h-3.5 rounded-full flex items-center justify-center text-[8px] font-bold ${
+                      isAssignmentVisible ? 'bg-slate-900 text-white' : 'bg-slate-200 text-slate-500'
+                    }`}>
+                      {isAssignmentVisible ? '✓' : '2'}
                     </div>
-                  <div>
-                    <span className="text-[11px] font-mono text-slate-400 block">
-                      {isAssignmentVisible ? new Date(ticketData.created_at).toLocaleDateString([], { month: 'short', day: 'numeric' }) : 'Pending assignment'}
-                    </span>
-                    <span className="text-xs font-bold text-slate-900 block mt-0.5">
-                      {isAssignmentVisible ? 'Assigned to Field Team' : 'Awaiting Ward Assignment'}
-                    </span>
+                    <div>
+                      <span className="text-[10px] font-mono text-slate-400 block">
+                        {isAssignmentVisible ? new Date(ticketData.created_at).toLocaleDateString([], { month: 'short', day: 'numeric' }) : 'Pending assignment'}
+                      </span>
+                      <span className="font-semibold text-slate-900 block mt-0.5">
+                        {isAssignmentVisible ? 'Assigned to Ward Officer' : 'Awaiting Ward Assignment'}
+                      </span>
+                    </div>
                   </div>
-                </div>
 
                   {/* Step 3: Inspection Completed */}
                   <div className="relative">
-                    <div className="absolute -left-[31px] top-0.5 w-4 h-4 rounded-full bg-[#0047bb] border-2 border-white ring-2 ring-blue-100 flex items-center justify-center text-[9px] text-white font-bold">
-                      ✓
+                    <div className={`absolute -left-[27px] top-0.5 w-3.5 h-3.5 rounded-full flex items-center justify-center text-[8px] font-bold ${
+                      isInspectionComplete ? 'bg-slate-900 text-white' : 'bg-slate-200 text-slate-500'
+                    }`}>
+                      {isInspectionComplete ? '✓' : '3'}
                     </div>
-                  <div>
-                    <span className="text-[11px] font-mono text-slate-400 block">
-                      {inspectionLabel}
-                    </span>
-                    <span className="text-xs font-bold text-slate-900 block mt-0.5">
-                      {inspectionLabel}
-                    </span>
+                    <div>
+                      <span className="text-[10px] font-mono text-slate-400 block">
+                        {inspectionLabel}
+                      </span>
+                      <span className="font-semibold text-slate-900 block mt-0.5">
+                        {inspectionLabel}
+                      </span>
+                    </div>
                   </div>
-                </div>
 
                   {/* Step 4: Marked as Resolved */}
                   <div className="relative">
-                    <div className={`absolute -left-[31px] top-0.5 w-4 h-4 rounded-full flex items-center justify-center text-[9px] font-bold ${
-                      ['VERIFIED', 'CITIZEN_CONFIRMED', 'CLOSED'].includes(ticketData.status)
-                        ? 'bg-emerald-600 text-white ring-2 ring-emerald-100'
-                        : 'bg-slate-300 text-slate-600'
+                    <div className={`absolute -left-[27px] top-0.5 w-3.5 h-3.5 rounded-full flex items-center justify-center text-[8px] font-bold ${
+                      isResolved ? 'bg-emerald-600 text-white' : 'bg-slate-200 text-slate-500'
                     }`}>
-                      {['VERIFIED', 'CITIZEN_CONFIRMED', 'CLOSED'].includes(ticketData.status) ? '✓' : '4'}
+                      {isResolved ? '✓' : '4'}
                     </div>
                     <div>
-                      <span className="text-[11px] font-mono text-slate-400 block">
+                      <span className="text-[10px] font-mono text-slate-400 block">
                         {ticketData.resolution_date ? new Date(ticketData.resolution_date).toLocaleString() : 'Pending resolution'}
                       </span>
-                      <span className={`text-xs font-bold block mt-0.5 ${
-                        isResolved
-                          ? 'text-slate-900'
-                          : 'text-slate-400'
-                      }`}>
+                      <span className={`font-semibold block mt-0.5 ${isResolved ? 'text-slate-900' : 'text-slate-400'}`}>
                         {isResolved ? 'Marked as Resolved' : 'Awaiting Resolution'}
                       </span>
                     </div>
@@ -238,7 +246,7 @@ export const CitizenTrackPage: React.FC = () => {
                 </div>
               </div>
 
-              {/* RIGHT: VISUAL EVIDENCE VIEWER */}
+              {/* RIGHT: VISUAL EVIDENCE VIEWER (8 COLS) */}
               <div className="lg:col-span-8 space-y-6">
                 <EvidenceViewer
                   beforeUrl={ticketData.before_image_url}
@@ -246,78 +254,80 @@ export const CitizenTrackPage: React.FC = () => {
                   caseNumber={ticketData.ticket_number}
                   beforeTimestamp={new Date(ticketData.created_at).toLocaleString()}
                   afterTimestamp={ticketData.resolution_date ? new Date(ticketData.resolution_date).toLocaleString() : 'Pending resolution'}
-                  deviceInfo="Inspector-Cam V2"
+                  deviceInfo="Inspector-Cam V2 • GPS Verified"
                   hash="a8f9...3b2c"
                   statusBadge={ticketData.status}
                 />
 
-                {/* BOTTOM RESOLUTION CONFIRMATION / DISPUTE BAR */}
-                <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm space-y-4">
-                  
+                {/* CITIZEN CONFIRMATION & DISPUTE SECTION */}
+                <div className="civic-card p-6 space-y-4">
                   {showDisputeForm ? (
                     <form onSubmit={handleSubmitDispute} className="space-y-4">
                       <div className="flex items-center justify-between border-b border-slate-100 pb-2">
-                        <h4 className="text-sm font-bold text-slate-900">Reopen & File Dispute</h4>
+                        <h4 className="text-xs font-bold uppercase tracking-wider text-slate-900">
+                          Reopen & File Citizen Dispute
+                        </h4>
                         <button
                           type="button"
                           onClick={() => setShowDisputeForm(false)}
-                          className="text-xs text-slate-400 hover:text-slate-700 font-semibold"
+                          className="text-xs text-slate-500 hover:text-slate-800"
                         >
                           Cancel
                         </button>
                       </div>
 
                       <div>
-                        <label className="block text-xs font-bold text-slate-700 mb-1">
-                          What is still wrong?
+                        <label className="block text-xs font-semibold text-slate-700 mb-1">
+                          Describe what is still defective:
                         </label>
                         <textarea
                           rows={3}
                           required
-                          placeholder="Describe why this issue is not fully addressed..."
+                          placeholder="Explain why this resolution is incomplete or inaccurate..."
                           value={disputeReason}
                           onChange={(e) => setDisputeReason(e.target.value)}
-                          className="w-full p-3 border border-slate-200 rounded-xl text-xs focus:outline-none focus:border-[#0047bb]"
+                          className="civic-input resize-none"
                         />
                       </div>
 
                       <button
                         type="submit"
                         disabled={disputeSubmitting}
-                        className="px-6 py-2.5 bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold rounded-xl transition-all shadow-xs"
+                        className="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white text-xs font-semibold rounded-md transition-colors"
                       >
-                        {disputeSubmitting ? 'Filing Dispute...' : 'Submit Dispute & Reopen'}
+                        {disputeSubmitting ? 'Submitting Dispute...' : 'Submit Dispute & Reopen Case'}
                       </button>
                     </form>
                   ) : (
-                    <div className="text-center space-y-3">
-                      <h3 className="font-serif text-xl font-bold text-slate-950">
-                        Is the issue actually resolved?
-                      </h3>
-                      <p className="text-xs text-slate-500 max-w-lg mx-auto leading-relaxed">
-                        Please confirm if the stagnant water issue at {ticketData.ward_name || 'Ward 14'} has been fully addressed based on your observation.
-                      </p>
+                    <div className="space-y-3">
+                      <div className="border-b border-slate-100 pb-2">
+                        <h3 className="text-xs font-bold uppercase tracking-wider text-slate-900">
+                          Citizen Verification Feedback
+                        </h3>
+                        <p className="text-xs text-slate-500 mt-0.5">
+                          Confirm whether the physical repair matches the reported issue at {ticketData.ward_name || 'Ward 14'}.
+                        </p>
+                      </div>
 
-                      <div className="flex items-center justify-center gap-4 pt-2">
+                      <div className="flex flex-wrap items-center gap-3 pt-1">
                         <button
                           onClick={handleConfirmResolution}
-                          className="px-6 py-3 bg-[#0047bb] hover:bg-[#003ca0] text-white text-xs font-bold rounded-xl transition-all shadow-sm flex items-center gap-2"
+                          className="btn-primary"
                         >
-                          <ThumbsUp className="w-4 h-4" />
-                          <span>Yes, it's resolved</span>
+                          <ThumbsUp className="w-3.5 h-3.5" />
+                          <span>Confirm Resolution</span>
                         </button>
 
                         <button
                           onClick={() => setShowDisputeForm(true)}
-                          className="px-6 py-3 bg-white hover:bg-slate-50 border border-slate-300 text-slate-800 text-xs font-bold rounded-xl transition-all shadow-2xs flex items-center gap-2"
+                          className="btn-secondary"
                         >
-                          <ThumbsDown className="w-4 h-4 text-rose-600" />
-                          <span>No, it's still there</span>
+                          <ThumbsDown className="w-3.5 h-3.5 text-rose-600" />
+                          <span>Dispute & Reopen</span>
                         </button>
                       </div>
                     </div>
                   )}
-
                 </div>
 
               </div>
