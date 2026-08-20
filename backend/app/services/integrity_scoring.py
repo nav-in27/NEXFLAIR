@@ -356,6 +356,11 @@ class IntegrityScoringService:
             explanations.append("HUMAN REVIEW REQUIRED: Scene correspondence uncertain.")
             overall_score = evidence_quality
             overall_confidence = 0.75
+        elif location_status in ("GPS_MISMATCH", "FAIL"):
+            decision = "CLOSURE_NOT_VERIFIED"
+            overall_score = round(min(15.0, spatial_score), 1)
+            overall_confidence = 0.95
+            explanations.append(f"CLOSURE NOT VERIFIED: Location Mismatch detected. Worker evidence was captured {dist_m}m away.")
         elif location_status in ("GPS_UNAVAILABLE", "UNUSABLE", "UNAVAILABLE"):
             decision = "VERIFIED" if scene_status in ("STRONG_MATCH", "WEAK_MATCH") else "HUMAN_REVIEW"
             if decision == "VERIFIED":
