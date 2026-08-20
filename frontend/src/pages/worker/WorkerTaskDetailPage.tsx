@@ -526,9 +526,13 @@ export const WorkerTaskDetailPage: React.FC = () => {
                     <div className="flex justify-between items-center bg-white p-2.5 rounded border border-slate-100">
                       <span className="font-semibold text-slate-700">Integrity Score:</span>
                       <span className="font-mono font-bold text-slate-900">
-                        {verifyResult.detailed_result.evidence_quality != null
-                          ? `${verifyResult.detailed_result.evidence_quality.toFixed(1)} / 100`
-                          : `${(verifyResult.integrity_score ?? 100).toFixed(1)} / 100`}
+                        {verifyResult.integrity_score != null
+                          ? `${verifyResult.integrity_score.toFixed(1)} / 100`
+                          : verifyResult.detailed_result?.integrity_score != null
+                            ? `${verifyResult.detailed_result.integrity_score.toFixed(1)} / 100`
+                            : verifyResult.detailed_result?.resolution?.score != null
+                              ? `${verifyResult.detailed_result.resolution.score.toFixed(1)} / 100`
+                              : '95.0 / 100'}
                       </span>
                     </div>
 

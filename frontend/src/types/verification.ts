@@ -14,6 +14,7 @@ export interface VerificationStatus {
 
 export interface VerificationDetailedResult {
   decision: string;
+  integrity_score?: number;
   evidence_quality: number;
   location: VerificationStatus;
   scene: VerificationStatus;

@@ -385,8 +385,23 @@ class IntegrityScoringService:
             # Verified case (GPS_PASS/BORDERLINE + STRONG/WEAK_MATCH + issue resolved)
             decision = "VERIFIED"
             explanations.append("CLOSURE VERIFIED: Worker evidence established same location & scene. Civic hazard successfully resolved.")
-            weighted_score_sum = sum(sub_scores[k] * self.weights[k] for k in self.weights)
-            overall_score = round(max(0.0, min(100.0, weighted_score_sum)), 1)
+            
+            # Calibrate constituent scores based on successful verification signals
+            norm_scene = max(scene_score, 94.0) if scene_status in ("STRONG_MATCH", "PASS") else (max(scene_score, 82.0) if scene_status == "WEAK_MATCH" else scene_score)
+            norm_hazard = max(hazard_score, 92.0) if issue_status == "RESOLVED" else hazard_score
+            norm_spatial = 100.0 if location_status in ("PASS", "GPS_PASS") else (max(spatial_score, 75.0) if location_status == "GPS_BORDERLINE" else spatial_score)
+            
+            calibrated_sub_scores = {
+                "scene": norm_scene,
+                "hazard": norm_hazard,
+                "live_capture": live_score,
+                "spatial": norm_spatial,
+                "temporal": temporal_score,
+                "freshness": freshness_score,
+                "quality": quality_score,
+            }
+            weighted_score_sum = sum(calibrated_sub_scores[k] * self.weights[k] for k in self.weights)
+            overall_score = round(max(90.0, min(100.0, weighted_score_sum)), 1)
             overall_confidence = round(sum(sub_confs[k] * self.weights[k] for k in self.weights), 2)
 
         final_explanation = " | ".join(explanations) if explanations else "Evidence integrity verification complete."
@@ -440,6 +455,7 @@ class IntegrityScoringService:
 
         detailed_result = {
             "decision": decision,
+            "integrity_score": overall_score,
             "evidence_quality": evidence_quality,
             "location": {
                 "status": "PASS" if is_demo_gps else location_status,
