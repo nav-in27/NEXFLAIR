@@ -439,17 +439,21 @@ export const ReviewerInvestigationPage: React.FC = () => {
                     <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-1">
                       <div className="flex items-center justify-between text-xs font-bold">
                         <span className="text-slate-800">Location Consistency</span>
-                        {selectedCase.detailed_result?.location?.status === 'PASS' ? (
+                        {selectedCase.detailed_result?.location?.status === 'PASS' || selectedCase.detailed_result?.location?.status === 'GPS_PASS' ? (
                           <span className="px-2 py-0.5 bg-blue-100 text-blue-800 text-[10px] font-mono rounded font-bold">
-                            PASS ({selectedCase.detailed_result.location.accuracy_meters}m)
+                            PASS ({selectedCase.detailed_result.location.distance_meters ?? 'N/A'}m)
                           </span>
-                        ) : selectedCase.detailed_result?.location?.status === 'UNUSABLE' ? (
+                        ) : selectedCase.detailed_result?.location?.status === 'UNUSABLE' || selectedCase.detailed_result?.location?.status === 'GPS_UNAVAILABLE' ? (
                           <span className="px-2 py-0.5 bg-amber-100 text-amber-800 text-[10px] font-mono rounded font-bold">
                             ⚠️ UNUSABLE GPS
                           </span>
+                        ) : selectedCase.detailed_result?.location?.status === 'GPS_BORDERLINE' || selectedCase.detailed_result?.location?.status === 'BORDERLINE' ? (
+                          <span className="px-2 py-0.5 bg-amber-100 text-amber-800 text-[10px] font-mono rounded font-bold">
+                            ⚠️ BORDERLINE ({selectedCase.detailed_result.location.distance_meters ?? 'N/A'}m)
+                          </span>
                         ) : (
                           <span className="px-2 py-0.5 bg-rose-100 text-rose-800 text-[10px] font-mono rounded font-bold">
-                            ❌ FAIL ({selectedCase.detailed_result?.location?.accuracy_meters}m)
+                            ❌ FAIL ({selectedCase.detailed_result?.location?.distance_meters ?? 'N/A'}m)
                           </span>
                         )}
                       </div>

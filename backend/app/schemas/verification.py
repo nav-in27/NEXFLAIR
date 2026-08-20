@@ -9,6 +9,8 @@ class VerificationStatus(BaseModel):
     status: str
     score: Optional[float] = None
     accuracy_meters: Optional[float] = None
+    distance_meters: Optional[float] = None
+    tolerance_meters: Optional[float] = None
 
 class VerificationDetailedResult(BaseModel):
     decision: str
