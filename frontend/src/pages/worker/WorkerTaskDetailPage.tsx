@@ -414,19 +414,21 @@ export const WorkerTaskDetailPage: React.FC = () => {
                   (() => {
                     const ticketAcc = ticket?.accuracy_meters ?? 15;
                     const devAcc = evLoc.accuracy_meters ?? 15;
-                    const isRoughCoverage = ticketAcc > 1000 || devAcc > 1000;
-                    const maxAllowedM = isRoughCoverage ? Math.max(ticketAcc, 5000) : Math.max(50, ticketAcc + devAcc);
-                    const isMismatch = distanceMeters > maxAllowedM;
+                    const isRoughCoverage = ticketAcc > 10000 || devAcc > 10000;
+                    const maxAllowedM = isRoughCoverage ? Math.max(ticketAcc, devAcc) : Math.max(200, ticketAcc + devAcc);
+                    const borderlineMaxAllowedM = maxAllowedM + Math.max(50, maxAllowedM * 0.25);
+                    const isMismatch = distanceMeters > borderlineMaxAllowedM;
+                    const isBorderline = distanceMeters > maxAllowedM && distanceMeters <= borderlineMaxAllowedM;
 
                     if (isRoughCoverage) {
                       return (
                         <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-900 space-y-1">
                           <div className="flex items-center gap-1.5 font-bold text-amber-950">
                             <MapPin className="w-4 h-4 text-amber-600 shrink-0" />
-                            <span>Approximate Location Signal (±{Math.round(ticketAcc)}m)</span>
+                            <span>Approximate Location Signal (±{Math.round(Math.max(ticketAcc, devAcc))}m)</span>
                           </div>
                           <p className="text-[11px] leading-relaxed text-amber-800">
-                            Complaint was reported with approximate network/cellular coordinates. MEIKAAN will verify work resolution primarily using visual scene matching.
+                            Complaint or device reported with approximate cellular coordinates. MEIKAAN will verify work resolution primarily using visual scene matching.
                           </p>
                         </div>
                       );
@@ -442,6 +444,15 @@ export const WorkerTaskDetailPage: React.FC = () => {
                           <p className="text-[11px] leading-relaxed text-rose-800">
                             You appear to be approximately <strong>{distanceMeters} meters</strong> away from the reported complaint location (tolerance: ±{Math.round(maxAllowedM)}m). Evidence will be submitted and evaluated with visual matching.
                           </p>
+                        </div>
+                      );
+                    }
+
+                    if (isBorderline) {
+                      return (
+                        <div className="p-2.5 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-900 flex items-center gap-2">
+                          <AlertCircle className="w-4 h-4 text-amber-600 shrink-0" />
+                          <span>Location borderline with complaint site ({distanceMeters}m, ±{Math.round(maxAllowedM)}m tolerance).</span>
                         </div>
                       );
                     }

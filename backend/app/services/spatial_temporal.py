@@ -142,7 +142,7 @@ class TemporalConsistencyService:
 
             # Combined accuracy tolerance allowance
             tolerance = max(pass_m, ticket_accuracy + evidence_accuracy)
-            borderline_tolerance = tolerance + max(30.0, tolerance * 0.25)
+            borderline_tolerance = tolerance + max(50.0, tolerance * 0.25)
 
             # If GPS accuracy is extraordinarily wide (> 10,000m):
             if ticket_accuracy > 10000.0 or evidence_accuracy > 10000.0:
@@ -227,14 +227,12 @@ class TemporalConsistencyService:
                 speed_mps = task_dist_m / dt_sec
                 speed_kmh = round(speed_mps * 3.6, 1)
 
-                # If distance > 1,000m and travel speed > 150 km/h with a transit window under 1 hour
-                if task_dist_m > 1000.0 and speed_kmh > 150.0 and dt_sec < 3600:
+                # If distance > 5,000m and travel speed > 150 km/h with a transit window under 1 hour
+                if task_dist_m > 5000.0 and speed_kmh > 150.0 and dt_sec < 3600:
                     is_anomaly = True
                     observed_speed_kmh = speed_kmh
-                    spatial_score = 0.0
-                    location_status = "FAIL"
                     spatial_explanations.append(
-                        f"Spatio-temporal inconsistency detected: Consecutive tasks imply physically unlikely travel speed of {speed_kmh} km/h over {round(task_dist_m)}m in {round(dt_sec)}s."
+                        f"Spatio-temporal inconsistency detected: Consecutive tasks imply physically impossible travel speed of {speed_kmh} km/h over {round(task_dist_m)}m in {round(dt_sec)}s."
                     )
                     break
 

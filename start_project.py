@@ -255,12 +255,14 @@ def main():
     print_summary()
 
     # Keep process alive and monitor subprocesses
+    exited_pids = set()
     try:
         while True:
             time.sleep(1)
             for p in processes:
-                if p.poll() is not None:
-                    log(f"Subprocess (PID {p.pid}) exited unexpectedly.", "WARN")
+                if p.poll() is not None and p.pid not in exited_pids:
+                    exited_pids.add(p.pid)
+                    log(f"Subprocess (PID {p.pid}) exited with code {p.returncode}.", "WARN")
     except KeyboardInterrupt:
         cleanup()
 

@@ -577,4 +577,92 @@ def test_scenario_h_task_a_task_b_state_isolation():
         db.close()
 
 
+def test_task_9_exact_bug_regression():
+    """
+    TASK 9: Exact regression test
+    Complaint: lat/lng = (13.0000, 77.5000), accuracy = 178m
+    Evidence: lat/lng = (13.000927, 77.5000) ~103m away, accuracy = 128m
+    Tolerance = 178 + 128 = 306m
+    Scene = STRONG_MATCH, Issue = RESOLVED
+    Expected:
+    location.status = PASS
+    scene = STRONG_MATCH / PASS
+    issue = RESOLVED
+    final_decision = VERIFIED
+    """
+    db = SessionLocal()
+    try:
+        session, worker, t, ev_b, ev_a = create_test_session(
+            db, "POTHOLE",
+            13.000000, 77.500000, 178.0,
+            13.000927, 77.500000, 128.0,  # ~103 meters north
+            IMG_POTHOLE_SRC, IMG_FIXED_SRC
+        )
+        scoring = IntegrityScoringService()
+        res = scoring.finalize_verification(db, session.id)
+
+        loc = res.detailed_result["location"]
+        assert loc["status"] in ("PASS", "GPS_PASS"), f"Expected PASS, got {loc['status']}"
+        assert 100.0 <= loc["distance_meters"] <= 106.0, f"Expected ~103m, got {loc['distance_meters']}"
+        assert loc["accuracy_meters"] == 128.0, f"Expected 128m accuracy, got {loc['accuracy_meters']}"
+        assert loc["tolerance_meters"] == 306.0, f"Expected 306m tolerance, got {loc['tolerance_meters']}"
+        assert res.detailed_result["issue"]["status"] == "RESOLVED"
+        assert res.decision == "VERIFIED", f"Expected VERIFIED, got {res.decision}"
+    finally:
+        db.close()
+
+
+def test_task_9_distance_500m_exceeds_tolerance():
+    """
+    distance = 500m, tolerance = 306m
+    Expected:
+    location.status = FAIL
+    final_decision = CLOSURE_NOT_VERIFIED
+    """
+    db = SessionLocal()
+    try:
+        session, worker, t, ev_b, ev_a = create_test_session(
+            db, "POTHOLE",
+            13.000000, 77.500000, 178.0,
+            13.004500, 77.500000, 128.0,  # ~500 meters north
+            IMG_POTHOLE_SRC, IMG_FIXED_SRC
+        )
+        scoring = IntegrityScoringService()
+        res = scoring.finalize_verification(db, session.id)
+
+        loc = res.detailed_result["location"]
+        assert loc["status"] in ("FAIL", "GPS_MISMATCH"), f"Expected FAIL, got {loc['status']}"
+        assert loc["distance_meters"] >= 490.0
+        assert res.decision == "CLOSURE_NOT_VERIFIED"
+    finally:
+        db.close()
+
+
+def test_task_9_accuracy_not_added_to_distance():
+    """
+    distance = 103m, accuracy = 500m, base tolerance = 200m
+    Expected:
+    distance_meters == ~103m (NOT 603m)
+    """
+    db = SessionLocal()
+    try:
+        session, worker, t, ev_b, ev_a = create_test_session(
+            db, "POTHOLE",
+            13.000000, 77.500000, 15.0,
+            13.000927, 77.500000, 500.0,  # ~103m away with 500m device accuracy
+            IMG_POTHOLE_SRC, IMG_FIXED_SRC
+        )
+        scoring = IntegrityScoringService()
+        res = scoring.finalize_verification(db, session.id)
+
+        loc = res.detailed_result["location"]
+        assert 100.0 <= loc["distance_meters"] <= 106.0, f"Distance must be ~103m, NOT distance+accuracy. Got {loc['distance_meters']}"
+        assert loc["accuracy_meters"] == 500.0
+        # 103m is well within tolerance (max(200, 15+500) = 515m)
+        assert loc["status"] in ("PASS", "GPS_PASS")
+    finally:
+        db.close()
+
+
+
 

@@ -390,25 +390,23 @@ class IntegrityScoringService:
         logger.info(
             "\n"
             "==================================================\n"
-            "VERIFICATION AUDIT LOG:\n"
+            "VERIFY_START\n"
             "  complaint_id=%s\n"
             "  task_id=%s\n"
             "  worker_id=%s\n"
-            "  evidence_id=%s\n"
-            "  complaint_coordinates=(%s, %s)\n"
-            "  worker_coordinates=(%s, %s)\n"
-            "  distance_meters=%s\n"
-            "  gps_accuracy_meters=%s\n"
-            "  tolerance_meters=%s\n"
-            "  complaint_image_id=%s\n"
-            "  evidence_image_id=%s\n"
-            "  scene_score=%.1f\n"
-            "  resolution_score=%.1f\n"
-            "  quality_score=%.1f\n"
-            "  temporal_score=%.1f\n"
-            "  final_score=%.1f\n"
-            "  final_decision=%s\n"
-            "  decision_reason=%s\n"
+            "  evidence_id=%s\n\n"
+            "COMPLAINT_COORDS=(%s, %s)\n"
+            "EVIDENCE_COORDS=(%s, %s)\n"
+            "DISTANCE_METERS=%s\n"
+            "GPS_ACCURACY=±%s\n"
+            "TOLERANCE_METERS=±%s\n\n"
+            "SCENE_RESULT=%s (score=%.1f)\n"
+            "RESOLUTION_RESULT=%s (score=%.1f)\n"
+            "QUALITY_SCORE=%.1f\n"
+            "TEMPORAL_SCORE=%.1f\n\n"
+            "FINAL_SCORE=%.1f\n"
+            "FINAL_DECISION=%s\n"
+            "DECISION_REASON=%s\n"
             "==================================================",
             ticket.id if ticket else None,
             session.id,
@@ -421,9 +419,9 @@ class IntegrityScoringService:
             dist_m,
             acc_m,
             tolerance_m,
-            before_ev.id if before_ev else None,
-            after_ev.id if after_ev else None,
+            scene_status,
             scene_score,
+            issue_status,
             hazard_score,
             quality_score,
             temporal_score,
