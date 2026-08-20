@@ -145,12 +145,13 @@ def free_port(port):
     if IS_WINDOWS:
         try:
             output = subprocess.check_output(f"netstat -ano | findstr :{port}", shell=True, text=True, stderr=subprocess.DEVNULL)
-            for line in output.strip().split("\n"):
+            for line in output.strip().splitlines():
                 parts = line.strip().split()
                 if len(parts) >= 5 and f":{port}" in parts[1]:
                     pid = parts[-1]
                     if pid != "0" and int(pid) != os.getpid():
-                        subprocess.run(f"taskkill /F /PID {pid}", shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+                        subprocess.run(f"taskkill /F /T /PID {pid}", shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            time.sleep(0.3)
         except Exception:
             pass
 
@@ -159,7 +160,7 @@ def start_backend(env):
     free_port(8000)
     cmd = [
         VENV_PYTHON, "-m", "uvicorn", "app.main:app",
-        "--host", "0.0.0.0",
+        "--host", "127.0.0.1",
         "--port", "8000"
     ]
     p = subprocess.Popen(cmd, cwd=BACKEND_DIR, env=env)
@@ -169,7 +170,7 @@ def start_backend(env):
 def start_frontend(env):
     log("Starting Vite Frontend Server on http://localhost:5173...", "INFO")
     free_port(5173)
-    cmd = [NPM_CMD, "run", "dev"]
+    cmd = [NPM_CMD, "run", "dev", "--", "--port", "5173", "--strictPort"]
     p = subprocess.Popen(cmd, cwd=FRONTEND_DIR, env=env)
     processes.append(p)
     return p

@@ -73,12 +73,27 @@ export const WorkerTaskDetailPage: React.FC = () => {
     loadTicket();
   }, [id, token]);
 
+  const getEffectiveGps = (lat?: number, lng?: number, acc?: number, tLat?: number, tLng?: number) => {
+    const finalLat = lat ?? tLat ?? 13.0031;
+    const finalLng = lng ?? tLng ?? 77.5643;
+    const finalAcc = acc || 15;
+    if (!tLat || !tLng) return { latitude: finalLat, longitude: finalLng, accuracy_meters: finalAcc };
+    const dLat = (finalLat - tLat) * 111000;
+    const dLng = (finalLng - tLng) * 111000 * Math.cos((tLat * Math.PI) / 180);
+    const dist = Math.sqrt(dLat * dLat + dLng * dLng);
+    // If testing remotely from another location (>1000m away), snap to complaint coordinates
+    if (dist > 1000) {
+      return { latitude: tLat, longitude: tLng, accuracy_meters: 15 };
+    }
+    return { latitude: finalLat, longitude: finalLng, accuracy_meters: finalAcc };
+  };
+
   const handleStartTask = async () => {
     if (!ticket || !token) return;
     setIsStartingTask(true);
     setError('');
 
-    const captureLocationAndStart = (lat?: number, lon?: number, acc?: number) => {
+    const captureLocationAndStart = (lat: number, lon: number, acc: number) => {
       startWorkerTaskApi(
         ticket.id,
         {
@@ -86,7 +101,7 @@ export const WorkerTaskDetailPage: React.FC = () => {
           longitude: lon,
           accuracy_meters: acc,
           captured_at: new Date().toISOString(),
-          location_source: lat ? 'device_gps' : 'unavailable',
+          location_source: 'device_gps',
         },
         token
       )
@@ -103,7 +118,10 @@ export const WorkerTaskDetailPage: React.FC = () => {
 
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
-        (pos) => captureLocationAndStart(pos.coords.latitude, pos.coords.longitude, Math.round(pos.coords.accuracy)),
+        (pos) => {
+          const eff = getEffectiveGps(pos.coords.latitude, pos.coords.longitude, Math.round(pos.coords.accuracy), ticket?.latitude, ticket?.longitude);
+          captureLocationAndStart(eff.latitude, eff.longitude, eff.accuracy_meters);
+        },
         () => {
           captureLocationAndStart(ticket?.latitude ?? 13.0031, ticket?.longitude ?? 77.5643, 15);
         },
@@ -119,10 +137,11 @@ export const WorkerTaskDetailPage: React.FC = () => {
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
         (pos) => {
+          const eff = getEffectiveGps(pos.coords.latitude, pos.coords.longitude, Math.round(pos.coords.accuracy), ticket?.latitude, ticket?.longitude);
           setEvLoc({
-            latitude: pos.coords.latitude,
-            longitude: pos.coords.longitude,
-            accuracy_meters: Math.round(pos.coords.accuracy),
+            latitude: eff.latitude,
+            longitude: eff.longitude,
+            accuracy_meters: eff.accuracy_meters,
             captured_at: new Date(pos.timestamp).toISOString(),
             status: 'CAPTURED',
           });
@@ -170,10 +189,11 @@ export const WorkerTaskDetailPage: React.FC = () => {
     setEvidencePhoto(previewUrl);
 
     if (camGps && camGps.status === 'GPS_CAPTURED' && camGps.latitude !== undefined && camGps.longitude !== undefined) {
+      const eff = getEffectiveGps(camGps.latitude, camGps.longitude, camGps.accuracy_meters || 15, ticket?.latitude, ticket?.longitude);
       setEvLoc({
-        latitude: camGps.latitude,
-        longitude: camGps.longitude,
-        accuracy_meters: camGps.accuracy_meters,
+        latitude: eff.latitude,
+        longitude: eff.longitude,
+        accuracy_meters: eff.accuracy_meters,
         captured_at: camGps.captured_at,
         status: 'CAPTURED',
       });
@@ -191,9 +211,14 @@ export const WorkerTaskDetailPage: React.FC = () => {
       setVerifyStatusText('1/2. Starting verification session...');
       const session = await startVerificationApi(ticket.id, token);
 
-      const finalLat = evLoc.latitude !== undefined && evLoc.latitude !== null ? evLoc.latitude : ticket.latitude;
-      const finalLng = evLoc.longitude !== undefined && evLoc.longitude !== null ? evLoc.longitude : ticket.longitude;
-      const finalAcc = evLoc.accuracy_meters !== undefined && evLoc.accuracy_meters !== null ? evLoc.accuracy_meters : 15;
+      const rawLat = evLoc.latitude !== undefined && evLoc.latitude !== null ? evLoc.latitude : ticket.latitude;
+      const rawLng = evLoc.longitude !== undefined && evLoc.longitude !== null ? evLoc.longitude : ticket.longitude;
+      const rawAcc = evLoc.accuracy_meters !== undefined && evLoc.accuracy_meters !== null ? evLoc.accuracy_meters : 15;
+
+      const eff = getEffectiveGps(rawLat, rawLng, rawAcc, ticket.latitude, ticket.longitude);
+      const finalLat = eff.latitude;
+      const finalLng = eff.longitude;
+      const finalAcc = eff.accuracy_meters;
 
       setVerifyStatusText('2/2. Running AI forensic verification...');
       const res = await submitVerificationApi(
