@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Trash2, Droplets, Construction, Trees, CheckCircle2, AlertCircle, Camera, Loader2, MapPin, Navigation, ShieldAlert } from 'lucide-react';
+import { Trash2, Droplets, Construction, Trees, CheckCircle2, AlertCircle, Camera, Loader2, MapPin, Navigation, ShieldAlert, Upload } from 'lucide-react';
 import { createPublicCitizenReport } from '../../services/ticketApi';
+import { CameraCaptureModal, CameraGpsData } from '../../components/CameraCaptureModal';
 
 interface GpsState {
   latitude?: number;
@@ -18,6 +19,8 @@ export const CitizenReportPage: React.FC = () => {
   const [title, setTitle] = useState<string>('');
   const [description, setDescription] = useState<string>('');
   const [photoPreview, setPhotoPreview] = useState<string>('');
+  const [photoSource, setPhotoSource] = useState<'CAMERA' | 'GALLERY'>('GALLERY');
+  const [showCameraModal, setShowCameraModal] = useState<boolean>(false);
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [error, setError] = useState<string>('');
   const [submittedTicketNumber, setSubmittedTicketNumber] = useState<string>('');
@@ -104,8 +107,24 @@ export const CitizenReportPage: React.FC = () => {
       const reader = new FileReader();
       reader.onloadend = () => {
         setPhotoPreview(reader.result as string);
+        setPhotoSource('GALLERY');
       };
       reader.readAsDataURL(file);
+    }
+  };
+
+  const handleCameraCapture = (_file: File, previewUrl: string, camGps?: CameraGpsData) => {
+    setPhotoPreview(previewUrl);
+    setPhotoSource('CAMERA');
+    if (camGps && camGps.status === 'GPS_CAPTURED' && camGps.latitude && camGps.longitude) {
+      setGpsState({
+        latitude: camGps.latitude,
+        longitude: camGps.longitude,
+        accuracy_meters: camGps.accuracy_meters,
+        captured_at: camGps.captured_at,
+        status: 'GPS_CAPTURED',
+        explanation: `Location telemetry captured from live camera (Accuracy: ±${camGps.accuracy_meters} m).`,
+      });
     }
   };
 
@@ -209,7 +228,7 @@ export const CitizenReportPage: React.FC = () => {
             <div className="space-y-2">
               <h2 className="text-2xl font-bold text-slate-900">Complaint Submitted!</h2>
               <p className="text-xs text-slate-500">
-                Your report has been received and automatically assigned to a local ward officer based on your location.
+                Your report has been received and queued for ward assignment based on your location.
               </p>
               <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl font-mono text-sm font-bold text-[#0047bb]">
                 Ticket #{submittedTicketNumber}
@@ -371,26 +390,78 @@ export const CitizenReportPage: React.FC = () => {
                 </label>
 
                 {photoPreview ? (
-                  <div className="relative rounded-2xl overflow-hidden border border-slate-200 h-64 bg-slate-100">
+                  <div className="relative rounded-2xl overflow-hidden border border-slate-200 h-64 bg-slate-100 shadow-inner">
                     <img src={photoPreview} alt="Evidence preview" className="w-full h-full object-cover" />
+                    <div className="absolute top-3 left-3 px-3 py-1 bg-black/70 backdrop-blur-xs text-white text-[10px] font-bold rounded-lg uppercase tracking-wider flex items-center gap-1.5 shadow-sm">
+                      {photoSource === 'CAMERA' ? (
+                        <>
+                          <Camera className="w-3 h-3 text-blue-400" />
+                          <span>Live Camera Capture</span>
+                        </>
+                      ) : (
+                        <>
+                          <Upload className="w-3 h-3 text-emerald-400" />
+                          <span>Gallery Upload</span>
+                        </>
+                      )}
+                    </div>
                     <button
                       type="button"
                       onClick={() => {
                         setPhotoPreview('');
                       }}
-                      className="absolute top-3 right-3 px-3 py-1 bg-white/90 text-slate-900 text-xs font-semibold rounded-lg shadow-sm border border-slate-200"
+                      className="absolute top-3 right-3 px-3 py-1.5 bg-white/95 hover:bg-white text-slate-900 text-xs font-bold rounded-xl shadow-md border border-slate-200 transition-all"
                     >
-                      Remove Photo
+                      Change Photo
                     </button>
                   </div>
                 ) : (
-                  <label className="border-2 border-dashed border-slate-300 hover:border-slate-400 bg-slate-50 rounded-2xl p-8 flex flex-col items-center justify-center text-center cursor-pointer h-64 transition-colors">
-                    <Camera className="w-8 h-8 text-slate-400 mb-2" />
-                    <span className="text-xs font-bold text-slate-800">Upload Photo Evidence</span>
-                    <span className="text-[11px] text-slate-400 mt-1">JPEG, PNG up to 10MB</span>
-                    <input type="file" accept="image/*" onChange={handlePhotoSelect} className="hidden" />
-                  </label>
+                  <div className="grid grid-cols-2 gap-3 h-64">
+                    {/* Option 1: Live Camera Capture */}
+                    <button
+                      type="button"
+                      onClick={() => setShowCameraModal(true)}
+                      className="border-2 border-dashed border-blue-200 hover:border-blue-500 bg-blue-50/40 hover:bg-blue-50/90 rounded-2xl p-6 flex flex-col items-center justify-center text-center cursor-pointer transition-all group shadow-2xs"
+                    >
+                      <div className="w-12 h-12 rounded-2xl bg-blue-100/80 text-blue-700 flex items-center justify-center mb-3 group-hover:scale-110 group-hover:bg-blue-600 group-hover:text-white transition-all shadow-sm">
+                        <Camera className="w-6 h-6" />
+                      </div>
+                      <span className="text-xs font-bold text-slate-900 block">TAKE PHOTO</span>
+                      <span className="text-[10px] text-slate-500 mt-1 block">Live Camera / Webcam</span>
+                    </button>
+
+                    {/* Option 2: Gallery Upload */}
+                    <label className="border-2 border-dashed border-slate-300 hover:border-slate-500 bg-slate-50 hover:bg-slate-100 rounded-2xl p-6 flex flex-col items-center justify-center text-center cursor-pointer transition-all group shadow-2xs">
+                      <div className="w-12 h-12 rounded-2xl bg-slate-200/80 text-slate-700 flex items-center justify-center mb-3 group-hover:scale-110 group-hover:bg-slate-700 group-hover:text-white transition-all shadow-sm">
+                        <Upload className="w-6 h-6" />
+                      </div>
+                      <span className="text-xs font-bold text-slate-900 block">UPLOAD PHOTO</span>
+                      <span className="text-[10px] text-slate-500 mt-1 block">From Device / Gallery</span>
+                      <input
+                        type="file"
+                        accept="image/jpeg,image/png,image/webp"
+                        onChange={handlePhotoSelect}
+                        className="hidden"
+                      />
+                    </label>
+                  </div>
                 )}
+
+                {/* Camera Capture Modal */}
+                <CameraCaptureModal
+                  isOpen={showCameraModal}
+                  onClose={() => setShowCameraModal(false)}
+                  onCapture={handleCameraCapture}
+                  onFallbackUpload={() => {
+                    // Triggers fallback upload prompt
+                    const inputEl = document.createElement('input');
+                    inputEl.type = 'file';
+                    inputEl.accept = 'image/jpeg,image/png,image/webp';
+                    inputEl.onchange = (ev: any) => handlePhotoSelect(ev);
+                    inputEl.click();
+                  }}
+                  title="Citizen Report Evidence Capture"
+                />
               </div>
 
             </div>

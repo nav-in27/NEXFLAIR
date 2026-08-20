@@ -1,5 +1,6 @@
 import os
-from typing import List, Union
+from typing import List, Union, Any
+from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 class Settings(BaseSettings):
@@ -37,5 +38,16 @@ class Settings(BaseSettings):
         case_sensitive=True,
         extra="ignore"
     )
+
+    @field_validator("DEBUG", mode="before")
+    @classmethod
+    def _parse_debug_flag(cls, value: Any) -> Any:
+        if isinstance(value, str):
+            normalized = value.strip().lower()
+            if normalized in {"release", "production", "prod", "false", "0", "no", "off"}:
+                return False
+            if normalized in {"development", "dev", "true", "1", "yes", "on"}:
+                return True
+        return value
 
 settings = Settings()

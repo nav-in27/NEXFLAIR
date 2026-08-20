@@ -70,12 +70,14 @@ class GeometricVerifier:
                 spatial_coverage = 0.0
 
         # Evaluate Status based on thresholds
-        if inliers_count >= self.min_inliers and inlier_ratio >= self.min_inlier_ratio:
-            if spatial_coverage >= 0.10 and geometric_error <= self.max_error:
+        if inliers_count >= self.min_inliers and inlier_ratio >= self.min_inlier_ratio and geometric_error <= self.max_error:
+            if spatial_coverage >= 0.05 or inliers_count >= 8:
                 status = "STRONG_MATCH"
             else:
                 status = "WEAK_MATCH"
-        elif inliers_count >= (self.min_inliers // 2):
+        elif inliers_count >= 4 and inlier_ratio >= 0.04 and geometric_error <= (self.max_error * 1.5):
+            status = "WEAK_MATCH"
+        elif inliers_count >= 3:
             status = "UNCERTAIN"
         else:
             status = "DIFFERENT_SCENE"

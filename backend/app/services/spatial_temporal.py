@@ -61,8 +61,13 @@ class SpatialTemporalResult:
 
 # Configurable GPS location tolerance thresholds (in meters)
 LOCATION_THRESHOLDS = {
-    "STAGNANT_WATER": {"pass_m": 50.0, "fail_m": 200.0},
-    "DEFAULT": {"pass_m": 100.0, "fail_m": 500.0},
+    "POTHOLE": {"pass_m": 35.0, "fail_m": 120.0},
+    "ROAD_DEFECT": {"pass_m": 35.0, "fail_m": 120.0},
+    "ROAD_DAMAGE": {"pass_m": 35.0, "fail_m": 120.0},
+    "STAGNANT_WATER": {"pass_m": 35.0, "fail_m": 120.0},
+    "GARBAGE": {"pass_m": 40.0, "fail_m": 150.0},
+    "SOLID_WASTE": {"pass_m": 40.0, "fail_m": 150.0},
+    "DEFAULT": {"pass_m": 40.0, "fail_m": 150.0},
 }
 
 
@@ -94,14 +99,10 @@ class TemporalConsistencyService:
         ticket = db.query(Ticket).filter(Ticket.id == session.ticket_id).first()
         
         # Locate verification evidence submitted for session
-        evidence = (
-            db.query(TicketEvidence)
-            .filter(
-                TicketEvidence.ticket_id == session.ticket_id,
-                TicketEvidence.verification_session_id == session.id,
-            )
-            .first()
-        )
+        evidence = db.query(TicketEvidence).filter(
+            TicketEvidence.verification_session_id == session.id
+        ).order_by(TicketEvidence.created_at.desc()).first()
+
         if not evidence and session.evidence_id:
             evidence = db.query(TicketEvidence).filter(TicketEvidence.id == session.evidence_id).first()
 
@@ -122,60 +123,50 @@ class TemporalConsistencyService:
         low_confidence = False
         spatial_score = 100.0
         dist_m = None
-        location_status = "UNAVAILABLE"
+        location_status = "GPS_UNAVAILABLE"
         spatial_explanations = []
 
         if t_lat is None or t_lon is None or e_lat is None or e_lon is None:
             low_confidence = True
             spatial_score = 0.0
             confidence = 0.30
-            location_status = "UNAVAILABLE"
-            spatial_explanations.append("GPS_STATUS = UNAVAILABLE: Missing GPS coordinates for complaint or verification evidence.")
+            location_status = "GPS_UNAVAILABLE"
+            spatial_explanations.append("GPS_STATUS = GPS_UNAVAILABLE: Missing GPS coordinates for complaint or verification evidence.")
         else:
-            # ------- GPS ACCURACY GATE -------
-            # If either reading has extremely poor accuracy (>1000m), the GPS
-            # cannot be used for street-level verification.
-            GPS_ACCURACY_UNUSABLE_THRESHOLD = 1000.0  # meters
-
-            ticket_accuracy = getattr(ticket, 'accuracy_meters', None)
-            evidence_accuracy = getattr(evidence, 'accuracy_meters', None)
-
-            gps_unusable = False
-            accuracy_reasons = []
-            if ticket_accuracy is not None and ticket_accuracy > GPS_ACCURACY_UNUSABLE_THRESHOLD:
-                gps_unusable = True
-                accuracy_reasons.append(f"Citizen GPS accuracy ±{ticket_accuracy:.0f}m exceeds {GPS_ACCURACY_UNUSABLE_THRESHOLD:.0f}m threshold")
-            if evidence_accuracy is not None and evidence_accuracy > GPS_ACCURACY_UNUSABLE_THRESHOLD:
-                gps_unusable = True
-                accuracy_reasons.append(f"Worker evidence GPS accuracy ±{evidence_accuracy:.0f}m exceeds {GPS_ACCURACY_UNUSABLE_THRESHOLD:.0f}m threshold")
+            ticket_accuracy = float(getattr(ticket, 'accuracy_meters', None) or 15.0)
+            evidence_accuracy = float(getattr(evidence, 'accuracy_meters', None) or 15.0)
 
             dist_m = round(haversine_distance_meters(t_lat, t_lon, e_lat, e_lon), 1)
 
-            if gps_unusable:
-                # GPS is present but UNUSABLE for verification
-                location_status = "UNUSABLE"
-                spatial_score = 100.0  # Do not penalize overall score due to unusable GPS
+            # Combined accuracy tolerance allowance
+            tolerance = max(pass_m, ticket_accuracy + evidence_accuracy)
+            borderline_tolerance = tolerance + max(30.0, tolerance * 0.25)
+
+            # If GPS accuracy is extraordinarily wide (> 10,000m):
+            if ticket_accuracy > 10000.0 or evidence_accuracy > 10000.0:
+                location_status = "GPS_UNAVAILABLE"
+                spatial_score = 75.0
                 low_confidence = True
-                confidence = 0.20
+                confidence = 0.40
                 spatial_explanations.append(
-                    f"LOCATION SIGNAL UNRELIABLE: {'; '.join(accuracy_reasons)}. "
-                    f"Raw distance: {dist_m}m (not used for verification)."
+                    f"LOCATION SIGNAL APPROXIMATE: Cellular/network accuracy ±{max(ticket_accuracy, evidence_accuracy):.0f}m. "
+                    f"Raw distance: {dist_m}m. Relying on visual scene feature matching."
                 )
-            elif dist_m <= pass_m:
-                location_status = "PASS"
+            elif dist_m <= tolerance:
+                location_status = "GPS_PASS"
                 spatial_score = 100.0
                 confidence = 0.95
-                spatial_explanations.append(f"High spatial consistency: Evidence captured within {dist_m}m of complaint location.")
-            elif dist_m <= fail_m:
-                location_status = "UNCERTAIN"
-                spatial_score = round(max(20.0, 100.0 - ((dist_m - pass_m) / (fail_m - pass_m)) * 80.0), 1)
+                spatial_explanations.append(f"High spatial consistency: Evidence captured within {dist_m}m (tolerance ±{tolerance:.0f}m).")
+            elif dist_m <= borderline_tolerance:
+                location_status = "GPS_BORDERLINE"
+                spatial_score = round(max(50.0, 100.0 - ((dist_m - tolerance) / max(1.0, borderline_tolerance - tolerance)) * 50.0), 1)
                 confidence = 0.80
-                spatial_explanations.append(f"Location UNCERTAIN: Evidence captured {dist_m}m from complaint location (tolerance {pass_m}-{fail_m}m).")
+                spatial_explanations.append(f"Location GPS_BORDERLINE: Evidence captured {dist_m}m from complaint (tolerance ±{tolerance:.0f}m, borderline up to {borderline_tolerance:.0f}m).")
             else:
-                location_status = "FAIL"
+                location_status = "GPS_MISMATCH"
                 spatial_score = 0.0
                 confidence = 0.95
-                spatial_explanations.append(f"LOCATION MISMATCH FAIL: Evidence location is {dist_m}m away from complaint coordinates (exceeds {fail_m}m limit).")
+                spatial_explanations.append(f"LOCATION MISMATCH: Evidence location is {dist_m}m away from complaint coordinates (exceeds ±{borderline_tolerance:.0f}m limit).")
 
         # -------------------------------------------------------------------
         # 2. TEMPORAL / VELOCITY ANOMALY ANALYSIS
@@ -184,13 +175,15 @@ class TemporalConsistencyService:
         observed_speed_kmh = None
 
         if session.worker_id and evidence and e_lat is not None and e_lon is not None:
-            # Query recent prior evidence submitted by the same worker
+            # Query recent prior AFTER evidence submitted by the same worker on DIFFERENT tickets
             prior_evidences = (
                 db.query(TicketEvidence)
                 .join(VerificationSession, TicketEvidence.verification_session_id == VerificationSession.id)
                 .filter(
                     VerificationSession.worker_id == session.worker_id,
                     TicketEvidence.id != evidence.id,
+                    TicketEvidence.evidence_type == "AFTER",
+                    TicketEvidence.ticket_id != session.ticket_id,
                     TicketEvidence.latitude.isnot(None),
                     TicketEvidence.longitude.isnot(None),
                 )

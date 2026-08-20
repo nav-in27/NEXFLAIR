@@ -110,11 +110,13 @@ class IntegrityScoringService:
         # -------------------------------------------------------------------
         # 1. Execute / Collect Signals from all 7 constituent engines
         # -------------------------------------------------------------------
+        analysis_issues: List[str] = []
 
         # A. Scene Verification Engine
         scene_score = 0.0
         scene_conf = 0.85
         scene_status = "FAIL"
+        image_load_status = "SUCCESS"
         try:
             scene_svc = get_scene_verification_service()
             from app.models.entities import TicketEvidence, EvidenceType
@@ -131,23 +133,33 @@ class IntegrityScoringService:
                 TicketEvidence.verification_session_id == session.id,
             ).first()
 
-            if before_ev and after_ev:
+            if not before_ev or not after_ev:
+                image_load_status = "MISSING_EVIDENCE_RECORD"
+                scene_score = 50.0
+                scene_status = "UNCERTAIN"
+                scene_conf = 0.40
+                analysis_issues.append("Missing before or after evidence record for verification.")
+            else:
                 b_path = storage.get_file_path(before_ev.file_path)
                 a_path = storage.get_file_path(after_ev.file_path)
                 res_scene = scene_svc.analyze(b_path, a_path, session_id=session_id)
                 scene_score = res_scene.scene_score
                 scene_status = res_scene.scene_status
                 scene_conf = 0.90 if res_scene.error is None else 0.40
+                if res_scene.error:
+                    image_load_status = f"SCENE_ERROR: {res_scene.error}"
         except Exception as exc:
             logger.warning("[FusionEngine] Scene analysis error: %s", exc)
-            scene_score = 0.0
-            scene_status = "FAIL"
+            image_load_status = f"FAILED: {exc}"
+            scene_score = 50.0
+            scene_status = "ERROR"
             scene_conf = 0.30
+            analysis_issues.append(f"Scene analysis failed: {exc}")
 
         # B. Spatial Proximity & Location Gate Engine
         spatial_score = 0.0
         spatial_conf = 0.90
-        location_status = "UNAVAILABLE"
+        location_status = "GPS_UNAVAILABLE"
         dist_m = None
         try:
             spatial_svc = get_temporal_consistency_service()
@@ -158,12 +170,13 @@ class IntegrityScoringService:
             dist_m = res_sp.distance_meters
         except Exception as exc:
             logger.warning("[FusionEngine] Spatial analysis error: %s", exc)
-            spatial_score = 0.0
+            spatial_score = 50.0
             spatial_conf = 0.30
-            location_status = "UNAVAILABLE"
+            location_status = "ERROR"
+            analysis_issues.append(f"Spatial analysis failed: {exc}")
 
         # Evaluate if physical scene is verifiable
-        is_scene_verifiable = (location_status in ("PASS", "UNCERTAIN")) and (scene_status in ("PASS", "STRONG_MATCH", "WEAK_MATCH", "UNCERTAIN"))
+        is_scene_verifiable = (location_status in ("GPS_PASS", "GPS_BORDERLINE", "PASS", "UNCERTAIN")) and (scene_status in ("PASS", "STRONG_MATCH", "WEAK_MATCH", "UNCERTAIN"))
 
         # C. Hazard Change Engine (Conditional evaluation)
         hazard_score = 0.0
@@ -171,20 +184,22 @@ class IntegrityScoringService:
         hazard_review = False
         try:
             hazard_svc = get_hazard_detection_service()
+            complaint_type = ticket.complaint_type if ticket and ticket.complaint_type else "STAGNANT_WATER"
             if before_ev and after_ev:
                 b_path = storage.get_file_path(before_ev.file_path)
                 a_path = storage.get_file_path(after_ev.file_path)
                 res_haz = hazard_svc.analyze(
-                    b_path, a_path, session_id=session_id, is_scene_verifiable=is_scene_verifiable
+                    b_path, a_path, hazard_type=complaint_type, session_id=session_id, is_scene_verifiable=is_scene_verifiable
                 )
                 hazard_score = res_haz.hazard_resolution_score if is_scene_verifiable else 0.0
                 hazard_conf = res_haz.confidence if is_scene_verifiable else 0.0
                 hazard_review = res_haz.requires_human_review
         except Exception as exc:
             logger.warning("[FusionEngine] Hazard analysis error: %s", exc)
-            hazard_score = 0.0
+            hazard_score = 50.0
             hazard_conf = 0.30
             hazard_review = True
+            analysis_issues.append(f"Hazard analysis failed: {exc}")
 
         # D. Live Capture Engine
         live_score = 100.0
@@ -194,8 +209,8 @@ class IntegrityScoringService:
                 live_score = 100.0
                 live_conf = 0.95
             else:
-                live_score = 70.0  # Demo upload fallback score
-                live_conf = 0.75
+                live_score = 80.0  # Upload score
+                live_conf = 0.85
 
         # E. Temporal Velocity Engine
         temporal_score = 100.0
@@ -208,8 +223,9 @@ class IntegrityScoringService:
             is_anomaly = res_sp.is_spatio_temporal_anomaly
         except Exception as exc:
             logger.warning("[FusionEngine] Temporal analysis error: %s", exc)
-            temporal_score = 0.0
+            temporal_score = 50.0
             temporal_conf = 0.30
+            analysis_issues.append(f"Temporal analysis failed: {exc}")
 
         # F. Evidence Freshness Engine
         freshness_score = 100.0
@@ -228,6 +244,7 @@ class IntegrityScoringService:
             logger.warning("[FusionEngine] Freshness analysis error: %s", exc)
             freshness_score = 50.0
             freshness_conf = 0.30
+            analysis_issues.append(f"Freshness analysis failed: {exc}")
 
         # G. Evidence Quality Engine
         quality_score = 100.0
@@ -246,6 +263,7 @@ class IntegrityScoringService:
             quality_score = 50.0
             quality_conf = 0.30
             quality_review = True
+            analysis_issues.append(f"Quality analysis failed: {exc}")
 
         sub_scores = {
             "scene": scene_score,
@@ -274,60 +292,108 @@ class IntegrityScoringService:
         # Evidence Quality Score based on Quality, Live Capture, and Freshness
         evidence_quality = round((quality_score * 0.5) + (live_score * 0.3) + (freshness_score * 0.2), 1)
 
-        # Issue/Resolution Status based on hazard score
-        issue_status = "MATCH" if hazard_score >= 70.0 else "STILL_PRESENT"
-        resolution_status = "SUPPORTED" if hazard_score >= 70.0 else "UNSUPPORTED"
+        # Issue/Resolution Status based on hazard score and category
+        h_type = (ticket.complaint_type if ticket and ticket.complaint_type else "STAGNANT_WATER").upper()
+        is_road_type = h_type in ("ROAD_DEFECT", "POTHOLE", "ROAD_DAMAGE")
+        is_manual_cat = h_type in ("BROKEN_STREETLIGHT", "STREETLIGHT_OUTAGE", "ELECTRICAL_FAULT", "OTHER")
+
+        if is_manual_cat or (hazard_review and hazard_score < 25.0):
+            issue_status = "MANUAL_REVIEW"
+        elif hazard_score >= 50.0:
+            issue_status = "RESOLVED"
+        elif hazard_score >= 25.0:
+            issue_status = "PARTIAL_REDUCTION"
+        else:
+            issue_status = "STILL_PRESENT"
+
+        resolution_status = "SUPPORTED" if issue_status == "RESOLVED" else ("PARTIAL" if issue_status == "PARTIAL_REDUCTION" else "UNSUPPORTED")
         temporal_status = "INVALID" if is_anomaly or exact_dup else "VALID"
 
-        # Apply New Decision Matrix
+        # Apply Decision Matrix
         if exact_dup or is_anomaly:
             decision = "CLOSURE_NOT_VERIFIED"
             overall_score = 0.0
             overall_confidence = 0.95
             explanations.append("CLOSURE NOT VERIFIED: Critical integrity failure (replayed evidence or spatio-temporal anomaly).")
-        elif location_status == "FAIL":
+        elif location_status in ("GPS_MISMATCH", "FAIL"):
             decision = "CLOSURE_NOT_VERIFIED"
             overall_score = round(min(15.0, spatial_score), 1)
             overall_confidence = 0.95
             explanations.append(f"CLOSURE NOT VERIFIED: Location Mismatch detected. Worker evidence was captured {dist_m}m away.")
-        elif scene_status == "DIFFERENT_SCENE":
+        elif scene_status in ("DIFFERENT_SCENE", "FAIL"):
             decision = "CLOSURE_NOT_VERIFIED"
             overall_score = round(min(15.0, scene_score), 1)
             overall_confidence = 0.90
             explanations.append("CLOSURE NOT VERIFIED: Scene Identity Mismatch detected.")
-        elif location_status in ("UNUSABLE", "UNCERTAIN", "UNAVAILABLE"):
+        elif image_load_status != "SUCCESS" and "MISSING" in image_load_status:
             decision = "HUMAN_REVIEW"
-            if scene_status == "UNCERTAIN":
-                explanations.append("HUMAN REVIEW REQUIRED: Location is unusable and scene identity is uncertain.")
-            else:
-                explanations.append("HUMAN REVIEW REQUIRED: Location is unusable, require manual confirmation of scene match.")
-            overall_score = evidence_quality  # Score reflects evidence quality, not artificially 0
+            explanations.append("HUMAN REVIEW REQUIRED: One or both evidence images are missing or unreadable.")
+            overall_score = 40.0
+            overall_confidence = 0.50
+        elif issue_status == "MANUAL_REVIEW":
+            decision = "HUMAN_REVIEW"
+            explanations.append(f"HUMAN REVIEW REQUIRED: Complaint type '{h_type}' requires manual auditor review.")
+            overall_score = evidence_quality
+            overall_confidence = 0.75
+        elif issue_status == "STILL_PRESENT":
+            decision = "CLOSURE_NOT_VERIFIED"
+            explanations.append(f"CLOSURE NOT VERIFIED: Civic hazard is still present (hazard reduction: {hazard_score:.1f}%).")
+            weighted_score_sum = sum(sub_scores[k] * self.weights[k] for k in self.weights)
+            overall_score = round(max(0.0, min(25.0, weighted_score_sum)), 1)
+            overall_confidence = round(sum(sub_confs[k] * self.weights[k] for k in self.weights), 2)
+        elif issue_status == "PARTIAL_REDUCTION":
+            decision = "HUMAN_REVIEW"
+            explanations.append(f"HUMAN REVIEW REQUIRED: Hazard defect only partially resolved ({hazard_score:.1f}% reduction).")
+            weighted_score_sum = sum(sub_scores[k] * self.weights[k] for k in self.weights)
+            overall_score = round(max(0.0, min(100.0, weighted_score_sum)), 1)
             overall_confidence = 0.75
         elif scene_status == "UNCERTAIN":
             decision = "HUMAN_REVIEW"
             explanations.append("HUMAN REVIEW REQUIRED: Scene correspondence uncertain.")
             overall_score = evidence_quality
             overall_confidence = 0.75
-        elif quality_review:
-            decision = "HUMAN_REVIEW"
-            explanations.append("HUMAN REVIEW REQUIRED: Evidence quality flags (blur/exposure/resolution) require manual inspection.")
-            overall_score = evidence_quality
-            overall_confidence = 0.85
-        elif issue_status == "STILL_PRESENT":
-            decision = "CLOSURE_NOT_VERIFIED"
-            explanations.append(f"CLOSURE NOT VERIFIED: Hazard reduction ({hazard_score:.1f}%) is insufficient for resolution approval.")
+        elif location_status in ("GPS_UNAVAILABLE", "UNUSABLE", "UNAVAILABLE"):
+            decision = "VERIFIED" if scene_status in ("STRONG_MATCH", "WEAK_MATCH") else "HUMAN_REVIEW"
+            if decision == "VERIFIED":
+                explanations.append("CLOSURE VERIFIED: Scene correspondence confirmed defect resolution (location signal approximate/unavailable).")
+            else:
+                explanations.append("HUMAN REVIEW REQUIRED: Location signal unavailable and scene correspondence needs verification.")
             weighted_score_sum = sum(sub_scores[k] * self.weights[k] for k in self.weights)
             overall_score = round(max(0.0, min(100.0, weighted_score_sum)), 1)
-            overall_confidence = round(sum(sub_confs[k] * self.weights[k] for k in self.weights), 2)
+            overall_confidence = 0.85
+        elif quality_review:
+            decision = "HUMAN_REVIEW"
+            explanations.append("HUMAN REVIEW REQUIRED: Evidence quality flags require manual inspection.")
+            overall_score = evidence_quality
+            overall_confidence = 0.85
+        elif analysis_issues:
+            decision = "HUMAN_REVIEW"
+            explanations.append("HUMAN REVIEW REQUIRED: Analysis exception encountered.")
+            explanations.extend(analysis_issues)
+            overall_score = evidence_quality
+            overall_confidence = 0.60
         else:
-            # location_status == PASS and scene_status in STRONG/WEAK_MATCH and issue_status == MATCH
+            # Verified case (GPS_PASS/BORDERLINE + STRONG/WEAK_MATCH + issue resolved)
             decision = "VERIFIED"
-            explanations.append(f"CLOSURE VERIFIED: Worker evidence established same location & scene. Stagnant water hazard reduced by {hazard_score:.1f}%.")
+            explanations.append("CLOSURE VERIFIED: Worker evidence established same location & scene. Civic hazard successfully resolved.")
             weighted_score_sum = sum(sub_scores[k] * self.weights[k] for k in self.weights)
             overall_score = round(max(0.0, min(100.0, weighted_score_sum)), 1)
             overall_confidence = round(sum(sub_confs[k] * self.weights[k] for k in self.weights), 2)
 
-        final_explanation = " ".join(explanations)
+        # Concise backend audit logging
+        logger.info(
+            "[VerificationEngine] complaint_id=%s before_ev=%s after_ev=%s image_load=%s matching=%s GPS=%s decision=%s score=%.1f",
+            session.ticket_id,
+            before_ev.id if before_ev else None,
+            after_ev.id if after_ev else None,
+            image_load_status,
+            scene_status,
+            location_status,
+            decision,
+            overall_score
+        )
+
+        final_explanation = " | ".join(explanations) if explanations else "Evidence integrity verification complete."
 
         detailed_result = {
             "decision": decision,
@@ -335,25 +401,25 @@ class IntegrityScoringService:
             "location": {
                 "status": location_status,
                 "score": spatial_score,
-                "accuracy_meters": dist_m if dist_m is not None else None
+                "accuracy_meters": getattr(after_ev, 'accuracy_meters', None) if after_ev else None,
             },
             "scene": {
                 "status": scene_status,
-                "score": scene_score
+                "score": scene_score,
             },
             "issue": {
                 "status": issue_status,
-                "score": hazard_score
+                "score": hazard_score,
             },
             "temporal": {
                 "status": temporal_status,
-                "score": temporal_score
+                "score": temporal_score,
             },
             "resolution": {
                 "status": resolution_status,
-                "score": overall_score
+                "score": overall_score,
             },
-            "reason": final_explanation
+            "reason": final_explanation,
         }
 
         # -------------------------------------------------------------------
@@ -363,21 +429,23 @@ class IntegrityScoringService:
         session.status = "COMPLETED"
         session.completed_at = now_utc
 
+        # Update Ticket Status in DB
         if ticket:
             if decision == "VERIFIED":
                 ticket.status = TicketStatus.VERIFIED.value
-            elif decision == "SUSPICIOUS":
-                ticket.status = TicketStatus.SUSPICIOUS.value
-            elif decision == "CLOSURE_NOT_VERIFIED":
-                ticket.status = TicketStatus.CLOSURE_NOT_VERIFIED.value
-            else:
+            elif decision == "HUMAN_REVIEW":
                 ticket.status = TicketStatus.HUMAN_REVIEW.value
+            else:
+                ticket.status = TicketStatus.CLOSURE_NOT_VERIFIED.value
             ticket.updated_at = now_utc
+            db.commit()
 
         # Find or create VerificationResult
         vr = db.query(VerificationResult).filter(VerificationResult.session_id == session.id).first()
         if not vr:
+            import uuid
             vr = VerificationResult(
+                id=str(uuid.uuid4()),
                 session_id=session.id,
                 integrity_score=overall_score,
                 integrity_status=decision,
@@ -394,11 +462,17 @@ class IntegrityScoringService:
         db.refresh(vr)
 
         # Persist summary fusion signals
+        sig_loc = (
+            "FAIL" if location_status in ("GPS_MISMATCH", "FAIL")
+            else ("GPS_PASS" if location_status in ("GPS_PASS", "PASS")
+            else ("GPS_BORDERLINE" if location_status == "GPS_BORDERLINE"
+            else "GPS_UNAVAILABLE"))
+        )
         fusion_signals = [
             {"signal_name": "overall_integrity_score", "signal_value": str(overall_score), "confidence": overall_confidence},
             {"signal_name": "fusion_confidence", "signal_value": str(overall_confidence), "confidence": 1.0},
             {"signal_name": "final_decision", "signal_value": decision, "confidence": overall_confidence},
-            {"signal_name": "location_status", "signal_value": location_status, "confidence": spatial_conf},
+            {"signal_name": "location_status", "signal_value": sig_loc, "confidence": spatial_conf},
             {"signal_name": "scene_status", "signal_value": scene_status, "confidence": scene_conf},
             {"signal_name": "scene_score_weighted", "signal_value": str(round(scene_score * self.weights["scene"], 2)), "confidence": scene_conf},
             {"signal_name": "hazard_score_weighted", "signal_value": str(round(hazard_score * self.weights["hazard"], 2)), "confidence": hazard_conf},
@@ -426,6 +500,8 @@ class IntegrityScoringService:
         # STRUCTURED FORENSIC LOG
         # -------------------------------------------------------------------
         ticket_num = ticket.ticket_number if ticket else "UNKNOWN"
+        if analysis_issues:
+            logger.warning("[FusionEngine] Analysis issues for %s: %s", ticket_num, " | ".join(analysis_issues))
         logger.info(
             "\n[MEIKAAN VERIFICATION]\n"
             "CASE: %s\n"

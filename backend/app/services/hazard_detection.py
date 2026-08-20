@@ -132,6 +132,105 @@ class _ClassicalWaterDetector:
 
 
 # ---------------------------------------------------------------------------
+# Classical CV Road Defect / Pothole Detector
+# ---------------------------------------------------------------------------
+
+class _ClassicalRoadDefectDetector:
+    """
+    Classical Computer Vision detector for potholes and road defect cavities.
+    Analyzes morphological blackhat depressions weighted by rim boundary gradient
+    to isolate true road cavities from flat aggregate/gravel pavement textures.
+    """
+    def detect_defect_mask(self, img_bgr: np.ndarray) -> Tuple[np.ndarray, float]:
+        if img_bgr is None or img_bgr.size == 0:
+            return np.zeros((CANVAS_HEIGHT, CANVAS_WIDTH), dtype=np.uint8), 0.0
+
+        resized = cv2.resize(img_bgr, (CANVAS_WIDTH, CANVAS_HEIGHT), interpolation=cv2.INTER_AREA)
+        gray = cv2.cvtColor(resized, cv2.COLOR_BGR2GRAY)
+        blurred = cv2.GaussianBlur(gray, (7, 7), 0)
+
+        # 1. Gradient magnitude (rim boundaries of potholes)
+        grad_x = cv2.Sobel(blurred, cv2.CV_32F, 1, 0, ksize=3)
+        grad_y = cv2.Sobel(blurred, cv2.CV_32F, 0, 1, ksize=3)
+        mag = cv2.magnitude(grad_x, grad_y)
+
+        # 2. Morphological Blackhat (cavity depth depressions)
+        kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (35, 35))
+        blackhat = cv2.morphologyEx(blurred, cv2.MORPH_BLACKHAT, kernel)
+
+        # 3. Combined Depth-Gradient Product
+        depth_score = blackhat * (mag / 255.0)
+
+        # 4. Cavity threshold for genuine structural depressions
+        cavity_mask = (depth_score >= 12.0).astype(np.uint8) * 255
+
+        # Mask out boundary border strips to eliminate camera crop/vignette artifacts
+        cavity_mask[:18, :] = 0
+        cavity_mask[-18:, :] = 0
+        cavity_mask[:, :18] = 0
+        cavity_mask[:, -18:] = 0
+
+        # Morphological consolidation
+        kernel_clean = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (9, 9))
+        cleaned = cv2.morphologyEx(cavity_mask, cv2.MORPH_CLOSE, kernel_clean)
+
+        contours, _ = cv2.findContours(cleaned, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        mask = np.zeros_like(gray)
+        total_defect_pixels = 0
+
+        for cnt in contours:
+            area = cv2.contourArea(cnt)
+            x, y, w, h = cv2.boundingRect(cnt)
+            aspect = max(w, h) / max(1.0, min(w, h))
+            if 150 <= area <= (CANVAS_TOTAL_PIXELS * 0.40) and aspect < 5.0:
+                cv2.drawContours(mask, [cnt], -1, 255, -1)
+                total_defect_pixels += int(area)
+
+        conf = 0.85 if total_defect_pixels > 300 else 0.70
+        return mask, conf
+
+
+class _ClassicalGarbageDetector:
+    """
+    Classical Computer Vision detector for garbage / solid waste dumps.
+    Analyzes high local color variance, multi-hued trash clusters, and high local texture entropy.
+    """
+    def detect_garbage_mask(self, img_bgr: np.ndarray) -> Tuple[np.ndarray, float]:
+        if img_bgr is None or img_bgr.size == 0:
+            return np.zeros((CANVAS_HEIGHT, CANVAS_WIDTH), dtype=np.uint8), 0.0
+
+        resized = cv2.resize(img_bgr, (CANVAS_WIDTH, CANVAS_HEIGHT), interpolation=cv2.INTER_AREA)
+        hsv = cv2.cvtColor(resized, cv2.COLOR_BGR2HSV)
+        gray = cv2.cvtColor(resized, cv2.COLOR_BGR2GRAY)
+
+        # Waste clusters display high localized saturation variance and diverse hues
+        h, s, v = cv2.split(hsv)
+        s_lap = cv2.Laplacian(s, cv2.CV_32F)
+        s_std_mag = np.abs(s_lap)
+
+        waste_mask = ((s_std_mag > 22.0) & (v > 35)).astype(np.uint8) * 255
+        waste_mask[:15, :] = 0
+        waste_mask[-15:, :] = 0
+        waste_mask[:, :15] = 0
+        waste_mask[:, -15:] = 0
+
+        kernel_clean = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (11, 11))
+        cleaned = cv2.morphologyEx(waste_mask, cv2.MORPH_CLOSE, kernel_clean)
+
+        contours, _ = cv2.findContours(cleaned, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        mask = np.zeros_like(gray)
+        total_waste_pixels = 0
+        for cnt in contours:
+            area = cv2.contourArea(cnt)
+            if 200 <= area <= (CANVAS_TOTAL_PIXELS * 0.50):
+                cv2.drawContours(mask, [cnt], -1, 255, -1)
+                total_waste_pixels += int(area)
+
+        conf = 0.80 if total_waste_pixels > 300 else 0.65
+        return mask, conf
+
+
+# ---------------------------------------------------------------------------
 # YOLO Hazard Detector (Primary)
 # ---------------------------------------------------------------------------
 
@@ -145,11 +244,15 @@ class _YOLOHazardDetector:
 
     def _load(self):
         try:
-            from ultralytics import YOLO
+            import importlib
+            ultralytics_pkg = importlib.import_module("ultralytics")
+            yolo_cls = getattr(ultralytics_pkg, "YOLO", None)
+            if yolo_cls is None:
+                raise ImportError("YOLO class not found in ultralytics package")
 
             logger.info("[HazardEngine] Attempting to load YOLO model…")
             # Load nano segmentation model for fast CPU execution
-            self._model = YOLO("yolov8n-seg.pt")
+            self._model = yolo_cls("yolov8n-seg.pt")
             self._available = True
             logger.info("[HazardEngine] ✓ YOLO segmentation model loaded successfully.")
         except Exception as exc:
@@ -250,6 +353,8 @@ class HazardDetectionService:
     def __init__(self):
         self._yolo_detector = _YOLOHazardDetector()
         self._classical_detector = _ClassicalWaterDetector()
+        self._road_defect_detector = _ClassicalRoadDefectDetector()
+        self._garbage_detector = _ClassicalGarbageDetector()
 
         if self._yolo_detector.available:
             logger.info("[HazardDetectionService] Primary engine: YOLO Segmentation")
@@ -286,21 +391,7 @@ class HazardDetectionService:
         is_scene_verifiable: bool = True,
     ) -> HazardAnalysisResult:
         """
-        Run the hazard change engine on a BEFORE / AFTER image pair.
-
-        Parameters
-        ----------
-        before_image : str | bytes | np.ndarray
-        after_image : str | bytes | np.ndarray
-        hazard_type : str, default "STAGNANT_WATER"
-        visualization_dir : str, optional
-        session_id : str, optional
-        is_scene_verifiable : bool, default True
-            If False, hazard reduction cannot be established due to scene/location mismatch.
-
-        Returns
-        -------
-        HazardAnalysisResult
+        Run the hazard change engine on a BEFORE / AFTER image pair with category-specific logic.
         """
         t0 = time.perf_counter()
 
@@ -343,12 +434,51 @@ class HazardDetectionService:
                 review_reason=f"Image load failure: {str(exc)}",
             )
 
-        # 2. Run detection pipeline
-        method_used = "YOLO_SEGMENTATION"
-        if self._yolo_detector.available:
+        # 2. Run category-specific detection pipeline
+        h_norm = hazard_type.upper()
+        is_road_defect = h_norm in ("ROAD_DEFECT", "POTHOLE", "ROAD_DAMAGE")
+        is_garbage = h_norm in ("GARBAGE", "SOLID_WASTE", "GARBAGE_DUMP", "LITTER")
+        is_water = h_norm in ("STAGNANT_WATER", "WATER_ACCUMULATION", "DRAINAGE_OVERFLOW", "WATER_LOGGING")
+        is_manual_category = h_norm in ("BROKEN_STREETLIGHT", "STREETLIGHT_OUTAGE", "ELECTRICAL_FAULT", "OTHER")
+
+        if is_manual_category:
+            elapsed = round((time.perf_counter() - t0) * 1000, 1)
+            reason = f"Category '{hazard_type}' requires manual auditor review for infrastructure verification."
+            signals = [
+                {"signal_name": "hazard_type", "signal_value": hazard_type, "confidence": 1.0},
+                {"signal_name": "hazard_status", "signal_value": "MANUAL_REVIEW_REQUIRED", "confidence": 0.80},
+                {"signal_name": "hazard_reduction_percentage", "signal_value": "N/A", "confidence": 0.0},
+                {"signal_name": "hazard_resolution_score", "signal_value": "50.0", "confidence": 0.50},
+                {"signal_name": "requires_human_review", "signal_value": "True", "confidence": 1.0},
+                {"signal_name": "human_review_reason", "signal_value": reason, "confidence": 1.0},
+            ]
+            return HazardAnalysisResult(
+                hazard_type=hazard_type,
+                before_hazard_area=0,
+                after_hazard_area=0,
+                hazard_reduction_percentage=0.0,
+                hazard_resolution_score=50.0,
+                confidence=0.50,
+                method_used="MANUAL_REVIEW_REQUIRED",
+                inference_time_ms=elapsed,
+                requires_human_review=True,
+                review_reason=reason,
+                signals=signals,
+            )
+
+        if is_road_defect:
+            mask_b, conf_b = self._road_defect_detector.detect_defect_mask(img_b)
+            mask_a, conf_a = self._road_defect_detector.detect_defect_mask(img_a)
+            method_used = "CLASSICAL_CV_ROAD_DEFECT"
+        elif is_garbage:
+            mask_b, conf_b = self._garbage_detector.detect_garbage_mask(img_b)
+            mask_a, conf_a = self._garbage_detector.detect_garbage_mask(img_a)
+            method_used = "CLASSICAL_CV_SOLID_WASTE"
+        elif is_water and self._yolo_detector.available:
             try:
                 mask_b, conf_b = self._yolo_detector.detect_water_mask(img_b)
                 mask_a, conf_a = self._yolo_detector.detect_water_mask(img_a)
+                method_used = "YOLO_SEGMENTATION"
             except Exception as exc:
                 logger.warning("[HazardEngine] YOLO detection failed: %s – using Classical CV fallback", exc)
                 mask_b, conf_b = self._classical_detector.detect_water_mask(img_b)
@@ -372,19 +502,20 @@ class HazardDetectionService:
         avg_confidence = round((conf_b + conf_a) / 2.0, 2)
         elapsed = round((time.perf_counter() - t0) * 1000, 1)
 
-        # 4. Human Review Routing Evaluation
+        # 4. Category-Specific Human Review Routing Evaluation
         requires_review = False
         review_reason = None
 
-        if area_b < 200:
+        min_area_thresh = 150 if is_road_defect else 200
+        if area_b < min_area_thresh:
             requires_review = True
-            review_reason = "No significant stagnant water hazard detected in BEFORE complaint image (area < 200 px)."
+            review_reason = f"No significant {hazard_type.lower().replace('_', ' ')} detected in BEFORE complaint image (area < {min_area_thresh} px)."
         elif avg_confidence < 0.40:
             requires_review = True
             review_reason = f"Low detection confidence ({avg_confidence:.2f} < 0.40)."
         elif area_a > area_b * 1.25:
             requires_review = True
-            review_reason = "Hazard area increased significantly in post-verification image."
+            review_reason = f"Hazard defect area increased in post-verification image ({area_a} px > {area_b} px)."
 
         # 5. Generate Visualization
         viz_path = None

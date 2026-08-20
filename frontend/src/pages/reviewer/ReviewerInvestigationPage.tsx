@@ -4,7 +4,7 @@ import {
   ShieldCheck, Plus, User, HardHat, CheckSquare, Settings, FileText, 
   Search, CheckCircle2, MapPin, Loader2, Activity
 } from 'lucide-react';
-import { getReviewerQueue, submitReviewAction } from '../../services/ticketApi';
+import { getReviewerQueue, submitReviewAction, fetchTicketById } from '../../services/ticketApi';
 import { ReviewQueueItem } from '../../types/ticket';
 import EvidenceViewer from '../../components/EvidenceViewer';
 
@@ -29,9 +29,36 @@ export const ReviewerInvestigationPage: React.FC = () => {
       const data = await getReviewerQueue();
       setQueue(data);
 
-      if (data.length > 0) {
-        const target = ticketId ? data.find((item: ReviewQueueItem) => item.ticket_id === ticketId || item.ticket_number === ticketId) || data[0] : data[0];
-        setSelectedCase(target);
+      if (ticketId) {
+        const target = data.find((item: ReviewQueueItem) => item.ticket_id === ticketId || item.ticket_number === ticketId);
+        if (target) {
+          setSelectedCase(target);
+        } else {
+          try {
+            const token = localStorage.getItem('meikaan_auth_token') || '';
+            const tkt = await fetchTicketById(ticketId, token);
+            const beforeEv = tkt.evidences?.find(e => e.evidence_type === 'BEFORE');
+            const afterEv = tkt.evidences?.find(e => e.evidence_type === 'AFTER' || e.evidence_type === 'LIVE_VERIFICATION');
+            setSelectedCase({
+              ticket_id: tkt.id,
+              ticket_number: tkt.ticket_number,
+              complaint_type: tkt.complaint_type,
+              title: tkt.title,
+              status: tkt.status,
+              worker_id: tkt.assigned_worker_id,
+              worker_name: tkt.assigned_worker?.full_name || 'Unassigned',
+              ward_name: tkt.ward?.name || 'Unassigned Ward',
+              primary_concern: `Status: ${tkt.status}`,
+              created_at: tkt.created_at,
+              before_image_url: beforeEv?.file_path,
+              after_image_url: afterEv?.file_path,
+            });
+          } catch {
+            setSelectedCase(data[0] || null);
+          }
+        }
+      } else if (data.length > 0) {
+        setSelectedCase(data[0]);
       } else {
         setSelectedCase(null);
       }
@@ -345,14 +372,16 @@ export const ReviewerInvestigationPage: React.FC = () => {
               {/* FORENSIC VISUAL COMPARISON VIEWER (8 COLS) */}
               <div className="lg:col-span-8 space-y-4">
                 <EvidenceViewer
+                  beforeUrl={selectedCase.before_image_url}
+                  afterUrl={selectedCase.after_image_url}
                   caseNumber={selectedCase.ticket_number}
-                  beforeTimestamp="2023-10-24 08:14 UTC"
-                  afterTimestamp="2023-10-25 14:32 UTC"
-                  deviceInfo="iPhone 13 Pro"
-                  hash="a9b3f...2c1e"
+                  beforeTimestamp={new Date(selectedCase.created_at).toLocaleString()}
+                  afterTimestamp="Resolution Evidence"
+                  deviceInfo="Forensic Evidence Engine"
+                  hash={selectedCase.verification_session_id || selectedCase.ticket_id}
                   latitude={34.0522}
                   longitude={-118.2437}
-                  statusBadge={selectedCase.status === 'CLOSURE_NOT_VERIFIED' ? 'CLOSURE NOT VERIFIED' : 'HUMAN REVIEW'}
+                  statusBadge={selectedCase.status === 'CLOSURE_NOT_VERIFIED' ? 'CLOSURE NOT VERIFIED' : selectedCase.status.replace('_', ' ')}
                 />
 
                 {/* BOTTOM DECISION BAR */}

@@ -20,6 +20,17 @@ export const CitizenTrackPage: React.FC = () => {
   const [disputeSubmitting, setDisputeSubmitting] = useState<boolean>(false);
   const [feedbackMsg, setFeedbackMsg] = useState<string>('');
 
+  const isResolved = !!ticketData && ['VERIFIED', 'CITIZEN_CONFIRMED', 'CLOSED'].includes(ticketData.status);
+  const isAssignmentVisible = !!ticketData && ticketData.status !== 'OPEN';
+  const isInspectionComplete = !!ticketData && ['VERIFIED', 'HUMAN_REVIEW', 'SUSPICIOUS', 'CLOSED', 'CITIZEN_CONFIRMED', 'CITIZEN_DISPUTE', 'CLOSURE_NOT_VERIFIED'].includes(ticketData.status);
+  const inspectionLabel = !ticketData
+    ? 'Inspection Pending'
+    : ticketData.status === 'IN_PROGRESS' || ticketData.status === 'PENDING_VERIFICATION'
+      ? 'Inspection In Progress'
+      : isInspectionComplete
+        ? 'Inspection Completed'
+        : 'Inspection Pending';
+
   const fetchTicket = async (ticketNum: string) => {
     setLoading(true);
     setError('');
@@ -176,30 +187,30 @@ export const CitizenTrackPage: React.FC = () => {
                     <div className="absolute -left-[31px] top-0.5 w-4 h-4 rounded-full bg-[#0047bb] border-2 border-white ring-2 ring-blue-100 flex items-center justify-center text-[9px] text-white font-bold">
                       ✓
                     </div>
-                    <div>
-                      <span className="text-[11px] font-mono text-slate-400 block">
-                        {new Date(ticketData.created_at).toLocaleDateString([], { month: 'short', day: 'numeric' })}, 12:20 PM
-                      </span>
-                      <span className="text-xs font-bold text-slate-900 block mt-0.5">
-                        Assigned to Field Team Alpha
-                      </span>
-                    </div>
+                  <div>
+                    <span className="text-[11px] font-mono text-slate-400 block">
+                      {isAssignmentVisible ? new Date(ticketData.created_at).toLocaleDateString([], { month: 'short', day: 'numeric' }) : 'Pending assignment'}
+                    </span>
+                    <span className="text-xs font-bold text-slate-900 block mt-0.5">
+                      {isAssignmentVisible ? 'Assigned to Field Team' : 'Awaiting Ward Assignment'}
+                    </span>
                   </div>
+                </div>
 
                   {/* Step 3: Inspection Completed */}
                   <div className="relative">
                     <div className="absolute -left-[31px] top-0.5 w-4 h-4 rounded-full bg-[#0047bb] border-2 border-white ring-2 ring-blue-100 flex items-center justify-center text-[9px] text-white font-bold">
                       ✓
                     </div>
-                    <div>
-                      <span className="text-[11px] font-mono text-slate-400 block">
-                        Inspection Completed
-                      </span>
-                      <span className="text-xs font-bold text-slate-900 block mt-0.5">
-                        Inspection Completed
-                      </span>
-                    </div>
+                  <div>
+                    <span className="text-[11px] font-mono text-slate-400 block">
+                      {inspectionLabel}
+                    </span>
+                    <span className="text-xs font-bold text-slate-900 block mt-0.5">
+                      {inspectionLabel}
+                    </span>
                   </div>
+                </div>
 
                   {/* Step 4: Marked as Resolved */}
                   <div className="relative">
@@ -212,14 +223,14 @@ export const CitizenTrackPage: React.FC = () => {
                     </div>
                     <div>
                       <span className="text-[11px] font-mono text-slate-400 block">
-                        {ticketData.resolution_date || 'Oct 14, 04:45 PM'}
+                        {ticketData.resolution_date ? new Date(ticketData.resolution_date).toLocaleString() : 'Pending resolution'}
                       </span>
                       <span className={`text-xs font-bold block mt-0.5 ${
-                        ['VERIFIED', 'CITIZEN_CONFIRMED', 'CLOSED'].includes(ticketData.status)
+                        isResolved
                           ? 'text-slate-900'
                           : 'text-slate-400'
                       }`}>
-                        Marked as Resolved
+                        {isResolved ? 'Marked as Resolved' : 'Awaiting Resolution'}
                       </span>
                     </div>
                   </div>
@@ -233,8 +244,8 @@ export const CitizenTrackPage: React.FC = () => {
                   beforeUrl={ticketData.before_image_url}
                   afterUrl={ticketData.resolution_image_url}
                   caseNumber={ticketData.ticket_number}
-                  beforeTimestamp="Oct 12, 09:14 AM"
-                  afterTimestamp="Oct 14, 04:45 PM"
+                  beforeTimestamp={new Date(ticketData.created_at).toLocaleString()}
+                  afterTimestamp={ticketData.resolution_date ? new Date(ticketData.resolution_date).toLocaleString() : 'Pending resolution'}
                   deviceInfo="Inspector-Cam V2"
                   hash="a8f9...3b2c"
                   statusBadge={ticketData.status}

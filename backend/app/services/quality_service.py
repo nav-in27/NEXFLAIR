@@ -26,11 +26,11 @@ import numpy as np
 logger = logging.getLogger("meikaan.quality_service")
 
 # Quality Threshold Constants
-MIN_WIDTH_PX = 480
-MIN_HEIGHT_PX = 360
-BLUR_LAPLACIAN_THRESH = 100.0  # Laplacian variance < 100 indicates blur
-TOO_DARK_MEAN_THRESH = 40.0    # Mean brightness < 40 indicates underexposure/darkness
-TOO_BRIGHT_MEAN_THRESH = 230.0 # Mean brightness > 230 indicates overexposure/glare
+MIN_WIDTH_PX = 320
+MIN_HEIGHT_PX = 240
+BLUR_LAPLACIAN_THRESH = 80.0   # Laplacian variance < 80 indicates severe blur
+TOO_DARK_MEAN_THRESH = 30.0    # Mean brightness < 30 indicates severe darkness
+TOO_BRIGHT_MEAN_THRESH = 235.0 # Mean brightness > 235 indicates severe overexposure
 OBSTRUCTION_UNIFORM_THRESH = 0.85 # >85% of pixels uniform indicates camera obstruction
 
 
@@ -99,14 +99,13 @@ class EvidenceQualityService:
         # 1. Resolution Check
         if w < MIN_WIDTH_PX or h < MIN_HEIGHT_PX:
             flags.append("LOW_RESOLUTION")
-            deductions += 25.0
+            deductions += 15.0
 
         # 2. Blur / Sharpness Analysis (Laplacian Variance)
         laplacian_var = float(cv2.Laplacian(gray, cv2.CV_64F).var())
         if laplacian_var < BLUR_LAPLACIAN_THRESH:
             flags.append("BLURRY")
-            # Proportional deduction based on severity of blur
-            blur_deduction = max(15.0, 40.0 * (1.0 - (laplacian_var / BLUR_LAPLACIAN_THRESH)))
+            blur_deduction = max(10.0, 30.0 * (1.0 - (laplacian_var / BLUR_LAPLACIAN_THRESH)))
             deductions += blur_deduction
 
         # 3. Brightness / Exposure Analysis
@@ -119,7 +118,6 @@ class EvidenceQualityService:
             deductions += 20.0
 
         # 4. Camera Obstruction / Occlusion Check (Finger over lens or lens cap)
-        # Check standard deviation of gray channel – zero/very low std indicates solid cover
         gray_std = float(np.std(gray))
         hist = cv2.calcHist([gray], [0], None, [256], [0, 256])
         max_bin_count = float(np.max(hist))
@@ -131,9 +129,9 @@ class EvidenceQualityService:
 
         # 5. Aspect Ratio / Heavy Cropping Check
         aspect_ratio = max(w / max(1, h), h / max(1, w))
-        if aspect_ratio > 3.0:  # Extreme banner/strip crop
+        if aspect_ratio > 3.5:
             flags.append("EXCESSIVE_CROPPING")
-            deductions += 20.0
+            deductions += 15.0
 
         # Calculate final quality score
         quality_score = round(max(0.0, min(100.0, 100.0 - deductions)), 1)

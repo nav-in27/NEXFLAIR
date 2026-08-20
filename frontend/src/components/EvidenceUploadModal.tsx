@@ -2,7 +2,8 @@ import React, { useState } from 'react';
 import { EvidenceType, SourceType } from '../types/evidence';
 import { uploadEvidenceApi } from '../services/evidenceApi';
 import { useAuth } from '../context/AuthContext';
-import { X, Upload, Camera, AlertCircle, CheckCircle2, Loader2, Image as ImageIcon, ShieldAlert } from 'lucide-react';
+import { X, Upload, Camera, AlertCircle, CheckCircle2, Loader2, ShieldAlert } from 'lucide-react';
+import { CameraCaptureModal } from './CameraCaptureModal';
 
 interface Props {
   ticketId: string;
@@ -16,6 +17,7 @@ export const EvidenceUploadModal: React.FC<Props> = ({ ticketId, onClose, onRefr
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [evidenceType, setEvidenceType] = useState<EvidenceType>('BEFORE');
   const [sourceType, setSourceType] = useState<SourceType>('UPLOAD');
+  const [showCamera, setShowCamera] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [uploadSuccess, setUploadSuccess] = useState(false);
@@ -173,35 +175,84 @@ export const EvidenceUploadModal: React.FC<Props> = ({ ticketId, onClose, onRefr
           </div>
 
           {/* Image Upload Dropzone / File Selector */}
-          <div className="space-y-1.5">
-            <label className="text-xs font-semibold text-slate-300 block">Select Image File</label>
-            <label className="border-2 border-dashed border-slate-800 hover:border-sky-500/50 rounded-2xl p-4 flex flex-col items-center justify-center cursor-pointer transition-colors bg-slate-950/60">
-              <input
-                type="file"
-                accept="image/jpeg,image/png,image/webp"
-                onChange={handleFileChange}
-                className="hidden"
-              />
-              {previewUrl ? (
-                <div className="space-y-2 text-center w-full">
-                  <img
-                    src={previewUrl}
-                    alt="Evidence Preview"
-                    className="max-h-40 mx-auto rounded-xl border border-slate-800 object-cover"
+          <div className="space-y-2">
+            <label className="text-xs font-semibold text-slate-300 block">Select Image Evidence</label>
+            
+            {previewUrl ? (
+              <div className="relative rounded-2xl overflow-hidden border border-slate-800 bg-slate-950 p-3 text-center">
+                <img
+                  src={previewUrl}
+                  alt="Evidence Preview"
+                  className="max-h-48 mx-auto rounded-xl border border-slate-800 object-cover"
+                />
+                <div className="mt-2 flex items-center justify-between px-2 text-xs">
+                  <span className="font-mono text-sky-400 truncate max-w-xs">{file?.name}</span>
+                  <span className="text-slate-500 text-[10px]">
+                    {file ? (file.size / (1024 * 1024)).toFixed(2) : 0} MB
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setFile(null);
+                    setPreviewUrl(null);
+                  }}
+                  className="mt-2 px-3 py-1 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold rounded-lg"
+                >
+                  Change Photo
+                </button>
+              </div>
+            ) : (
+              <div className="grid grid-cols-2 gap-3">
+                <button
+                  type="button"
+                  onClick={() => setShowCamera(true)}
+                  className="p-5 border-2 border-dashed border-slate-800 hover:border-emerald-500/50 bg-slate-950/60 rounded-2xl flex flex-col items-center justify-center text-center cursor-pointer transition-all group"
+                >
+                  <div className="w-10 h-10 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center mb-2 group-hover:scale-110 transition-transform">
+                    <Camera className="w-5 h-5" />
+                  </div>
+                  <span className="text-xs font-bold text-slate-200">TAKE PHOTO</span>
+                  <span className="text-[10px] text-slate-500 mt-0.5">Live Camera / Webcam</span>
+                </button>
+
+                <label className="p-5 border-2 border-dashed border-slate-800 hover:border-sky-500/50 bg-slate-950/60 rounded-2xl flex flex-col items-center justify-center text-center cursor-pointer transition-all group">
+                  <div className="w-10 h-10 rounded-xl bg-sky-500/20 text-sky-400 flex items-center justify-center mb-2 group-hover:scale-110 transition-transform">
+                    <Upload className="w-5 h-5" />
+                  </div>
+                  <span className="text-xs font-bold text-slate-200">UPLOAD PHOTO</span>
+                  <span className="text-[10px] text-slate-500 mt-0.5">From Device / Gallery</span>
+                  <input
+                    type="file"
+                    accept="image/jpeg,image/png,image/webp"
+                    onChange={(e) => {
+                      setSourceType('UPLOAD');
+                      handleFileChange(e);
+                    }}
+                    className="hidden"
                   />
-                  <p className="text-xs font-mono text-sky-400 truncate max-w-xs mx-auto">{file?.name}</p>
-                  <p className="text-[10px] text-slate-500">
-                    Size: {file ? (file.size / (1024 * 1024)).toFixed(2) : 0} MB • Click to replace
-                  </p>
-                </div>
-              ) : (
-                <div className="text-center space-y-2 py-4">
-                  <ImageIcon className="w-8 h-8 text-slate-600 mx-auto" />
-                  <p className="text-xs font-medium text-slate-300">Click or drop evidence photo here</p>
-                  <p className="text-[10px] font-mono text-slate-500">JPG, PNG, WEBP (Max 10MB)</p>
-                </div>
-              )}
-            </label>
+                </label>
+              </div>
+            )}
+
+            <CameraCaptureModal
+              isOpen={showCamera}
+              onClose={() => setShowCamera(false)}
+              onCapture={(capturedFile, capturedUrl) => {
+                setFile(capturedFile);
+                setPreviewUrl(capturedUrl);
+                setSourceType('LIVE_CAMERA');
+                setErrorMsg(null);
+              }}
+              onFallbackUpload={() => {
+                const inputEl = document.createElement('input');
+                inputEl.type = 'file';
+                inputEl.accept = 'image/jpeg,image/png,image/webp';
+                inputEl.onchange = (ev: any) => handleFileChange(ev);
+                inputEl.click();
+              }}
+              title="Evidence Photo Capture"
+            />
           </div>
 
           {/* Action Buttons */}

@@ -88,6 +88,9 @@ export interface ReviewQueueItem {
   primary_concern?: string;
   created_at: string;
   verification_session_id?: string;
+  before_image_url?: string;
+  after_image_url?: string;
+  detailed_result?: any;
 }
 
 export interface ReviewActionPayload {

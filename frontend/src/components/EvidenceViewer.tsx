@@ -59,6 +59,9 @@ export const EvidenceViewer: React.FC<EvidenceViewerProps> = ({
     setZoomLevel((prev) => (prev === 1 ? 1.5 : 1));
   };
 
+  const normalizedBeforeUrl = beforeUrl ? (beforeUrl.startsWith('http') || beforeUrl.startsWith('/') ? beforeUrl : `/${beforeUrl}`) : null;
+  const normalizedAfterUrl = afterUrl ? (afterUrl.startsWith('http') || afterUrl.startsWith('/') ? afterUrl : `/${afterUrl}`) : null;
+
   return (
     <div className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden space-y-0">
       
@@ -111,14 +114,25 @@ export const EvidenceViewer: React.FC<EvidenceViewerProps> = ({
       >
         {/* AFTER IMAGE (BOTTOM LAYER) */}
         <div className="absolute inset-0 w-full h-full">
-          {afterUrl ? (
+          {normalizedAfterUrl ? (
             <img
-              src={afterUrl}
+              src={normalizedAfterUrl}
               alt="After Evidence"
               className={`w-full h-full object-cover transition-transform duration-200 ${
                 isInverted ? 'invert' : ''
               }`}
               style={{ transform: `scale(${zoomLevel})` }}
+              onError={(e) => {
+                const target = e.currentTarget;
+                target.style.display = 'none';
+                const parent = target.parentElement;
+                if (parent && !parent.querySelector('.img-err-msg')) {
+                  const msg = document.createElement('div');
+                  msg.className = 'img-err-msg w-full h-full flex flex-col items-center justify-center text-rose-400 bg-slate-900 p-4 text-center text-xs font-mono';
+                  msg.innerText = `Failed to load resolution image (${normalizedAfterUrl})`;
+                  parent.appendChild(msg);
+                }
+              }}
             />
           ) : (
             <div className="w-full h-full flex flex-col items-center justify-center text-slate-500 bg-slate-800">
@@ -141,14 +155,25 @@ export const EvidenceViewer: React.FC<EvidenceViewerProps> = ({
             className="absolute inset-0 w-full h-full"
             style={{ width: containerRef.current ? `${containerRef.current.clientWidth}px` : '100%' }}
           >
-            {beforeUrl ? (
+            {normalizedBeforeUrl ? (
               <img
-                src={beforeUrl}
+                src={normalizedBeforeUrl}
                 alt="Before Evidence"
                 className={`w-full h-full object-cover transition-transform duration-200 ${
                   isInverted ? 'invert' : ''
                 }`}
                 style={{ transform: `scale(${zoomLevel})` }}
+                onError={(e) => {
+                  const target = e.currentTarget;
+                  target.style.display = 'none';
+                  const parent = target.parentElement;
+                  if (parent && !parent.querySelector('.img-err-msg')) {
+                    const msg = document.createElement('div');
+                    msg.className = 'img-err-msg w-full h-full flex flex-col items-center justify-center text-rose-400 bg-slate-900 p-4 text-center text-xs font-mono';
+                    msg.innerText = `Failed to load citizen photo (${normalizedBeforeUrl})`;
+                    parent.appendChild(msg);
+                  }
+                }}
               />
             ) : (
               <div className="w-full h-full flex flex-col items-center justify-center text-slate-500 bg-slate-850">

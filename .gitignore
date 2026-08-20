@@ -19,9 +19,16 @@ dist/
 .env
 uploads/*
 !uploads/.gitkeep
+backend/uploads/*
+!backend/uploads/.gitkeep
+**/uploads/*
+!**/uploads/.gitkeep
 
 # IDE & OS
 .vscode/
 .idea/
 .DS_Store
 Thumbs.db
+*.db-journal
+backend/*.db
+

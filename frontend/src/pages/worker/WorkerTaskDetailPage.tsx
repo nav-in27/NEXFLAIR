@@ -7,6 +7,7 @@ import { startVerificationApi, submitVerificationApi } from '../../services/veri
 import { uploadEvidenceApi } from '../../services/evidenceApi';
 import { Ticket } from '../../types/ticket';
 import { VerificationSession } from '../../types/verification';
+import { CameraCaptureModal, CameraGpsData } from '../../components/CameraCaptureModal';
 
 function calculateHaversineMeters(lat1: number, lon1: number, lat2: number, lon2: number): number {
   const R = 6371000;
@@ -30,6 +31,7 @@ export const WorkerTaskDetailPage: React.FC = () => {
 
   const [isStartingTask, setIsStartingTask] = useState<boolean>(false);
   const [showVerifyModal, setShowVerifyModal] = useState<boolean>(false);
+  const [showCameraModal, setShowCameraModal] = useState<boolean>(false);
 
   const [sourceType, setSourceType] = useState<'LIVE_CAMERA' | 'UPLOAD'>('LIVE_CAMERA');
   const [evidencePhoto, setEvidencePhoto] = useState<string>('');
@@ -98,7 +100,7 @@ export const WorkerTaskDetailPage: React.FC = () => {
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
         (pos) => captureLocationAndStart(pos.coords.latitude, pos.coords.longitude, Math.round(pos.coords.accuracy)),
-        (err) => {
+        () => {
           setError('LOCATION ACCESS REQUIRED: Please enable device location permissions to start this task.');
           setIsStartingTask(false);
         },
@@ -123,7 +125,7 @@ export const WorkerTaskDetailPage: React.FC = () => {
             status: 'CAPTURED',
           });
         },
-        (err) => {
+        () => {
           setEvLoc({ status: 'FAILED' });
           setError('GPS signal unreliable or denied. Evidence will be flagged for review.');
         },
@@ -147,6 +149,24 @@ export const WorkerTaskDetailPage: React.FC = () => {
     reader.readAsDataURL(file);
 
     captureEvidenceLocation();
+  };
+
+  const handleCameraCapture = (file: File, previewUrl: string, camGps?: CameraGpsData) => {
+    setSourceType('LIVE_CAMERA');
+    setEvidenceFile(file);
+    setEvidencePhoto(previewUrl);
+
+    if (camGps && camGps.status === 'GPS_CAPTURED' && camGps.latitude !== undefined && camGps.longitude !== undefined) {
+      setEvLoc({
+        latitude: camGps.latitude,
+        longitude: camGps.longitude,
+        accuracy_meters: camGps.accuracy_meters,
+        captured_at: camGps.captured_at,
+        status: 'CAPTURED',
+      });
+    } else {
+      captureEvidenceLocation();
+    }
   };
 
   const handleSubmitVerification = async () => {
@@ -295,19 +315,37 @@ export const WorkerTaskDetailPage: React.FC = () => {
       {/* Original Complaint Photo */}
       <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm space-y-3">
         <h3 className="text-xs font-bold uppercase tracking-wider text-slate-500">Original Complaint Scene</h3>
-        <div className="rounded-xl overflow-hidden bg-slate-100 border border-slate-200 h-56 flex items-center justify-center">
-          {ticket.evidences?.find(e => e.evidence_type === 'BEFORE')?.file_path ? (
-            <img
-              src={ticket.evidences.find(e => e.evidence_type === 'BEFORE')!.file_path}
-              alt="Original complaint scene"
-              className="w-full h-full object-cover"
-            />
-          ) : (
-            <div className="text-center p-6 text-slate-400">
-              <Camera className="w-8 h-8 mx-auto mb-2 opacity-50" />
-              <span className="text-xs font-semibold block text-slate-500">Citizen reported location (No initial photo attached)</span>
-            </div>
-          )}
+        <div className="rounded-xl overflow-hidden bg-slate-100 border border-slate-200 min-h-[14rem] flex items-center justify-center relative">
+          {(() => {
+            const beforeEv = ticket.evidences?.find(e => e.evidence_type === 'BEFORE');
+            if (!beforeEv || !beforeEv.file_path) {
+              return (
+                <div className="text-center p-6 text-slate-400">
+                  <Camera className="w-8 h-8 mx-auto mb-2 opacity-50" />
+                  <span className="text-xs font-semibold block text-slate-500">Citizen reported location (No initial photo attached)</span>
+                </div>
+              );
+            }
+            const imgUrl = beforeEv.file_path.startsWith('http') || beforeEv.file_path.startsWith('/') ? beforeEv.file_path : `/${beforeEv.file_path}`;
+            return (
+              <img
+                src={imgUrl}
+                alt="Original complaint scene"
+                className="w-full h-full object-cover"
+                onError={(e) => {
+                  const target = e.currentTarget;
+                  target.style.display = 'none';
+                  const parent = target.parentElement;
+                  if (parent && !parent.querySelector('.img-load-error')) {
+                    const errDiv = document.createElement('div');
+                    errDiv.className = 'img-load-error p-6 text-center text-rose-600 text-xs font-medium space-y-1';
+                    errDiv.innerHTML = `<span class="block font-bold">Failed to load evidence image</span><span class="text-[11px] text-slate-500 font-mono block">${imgUrl}</span>`;
+                    parent.appendChild(errDiv);
+                  }
+                }}
+              />
+            );
+          })()}
         </div>
       </div>
 
@@ -373,47 +411,98 @@ export const WorkerTaskDetailPage: React.FC = () => {
                   )}
                 </div>
 
-                {/* Distance Mismatch Warning */}
-                {distanceMeters !== null && distanceMeters > 50 && (
-                  <div className="p-3.5 bg-rose-50 border border-rose-200 rounded-xl text-xs text-rose-900 space-y-1">
-                    <div className="flex items-center gap-1.5 font-bold text-rose-950">
-                      <ShieldAlert className="w-4 h-4 text-rose-600 shrink-0" />
-                      <span>⚠ LOCATION MISMATCH DETECTED</span>
-                    </div>
-                    <p className="text-[11px] leading-relaxed text-rose-800">
-                      You appear to be approximately <strong>{distanceMeters} meters</strong> away from the reported complaint location. Evidence will be submitted, but system will flag location mismatch for human review.
-                    </p>
-                  </div>
+                {/* Location Matching Status & Feedback */}
+                {distanceMeters !== null && (
+                  (() => {
+                    const ticketAcc = ticket?.accuracy_meters ?? 15;
+                    const devAcc = evLoc.accuracy_meters ?? 15;
+                    const isRoughCoverage = ticketAcc > 1000 || devAcc > 1000;
+                    const maxAllowedM = isRoughCoverage ? Math.max(ticketAcc, 5000) : Math.max(50, ticketAcc + devAcc);
+                    const isMismatch = distanceMeters > maxAllowedM;
+
+                    if (isRoughCoverage) {
+                      return (
+                        <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-900 space-y-1">
+                          <div className="flex items-center gap-1.5 font-bold text-amber-950">
+                            <MapPin className="w-4 h-4 text-amber-600 shrink-0" />
+                            <span>Approximate Location Signal (±{Math.round(ticketAcc)}m)</span>
+                          </div>
+                          <p className="text-[11px] leading-relaxed text-amber-800">
+                            Complaint was reported with approximate network/cellular coordinates. MEIKAAN will verify work resolution primarily using visual scene matching.
+                          </p>
+                        </div>
+                      );
+                    }
+
+                    if (isMismatch) {
+                      return (
+                        <div className="p-3.5 bg-rose-50 border border-rose-200 rounded-xl text-xs text-rose-900 space-y-1">
+                          <div className="flex items-center gap-1.5 font-bold text-rose-950">
+                            <ShieldAlert className="w-4 h-4 text-rose-600 shrink-0" />
+                            <span>⚠ LOCATION MISMATCH DETECTED</span>
+                          </div>
+                          <p className="text-[11px] leading-relaxed text-rose-800">
+                            You appear to be approximately <strong>{distanceMeters} meters</strong> away from the reported complaint location (tolerance: ±{Math.round(maxAllowedM)}m). Evidence will be submitted and evaluated with visual matching.
+                          </p>
+                        </div>
+                      );
+                    }
+
+                    return (
+                      <div className="p-2.5 bg-emerald-50 border border-emerald-200 rounded-xl text-xs text-emerald-900 flex items-center gap-2">
+                        <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                        <span>Location matches complaint site ({distanceMeters}m, ±{Math.round(maxAllowedM)}m tolerance).</span>
+                      </div>
+                    );
+                  })()
                 )}
               </div>
             ) : (
               <div className="grid grid-cols-2 gap-3">
-                <label className="p-6 border-2 border-dashed border-slate-300 hover:border-slate-400 rounded-2xl bg-slate-50 text-center cursor-pointer flex flex-col items-center justify-center transition-colors">
-                  <Camera className="w-8 h-8 text-[#0047bb] mb-2" />
-                  <span className="text-xs font-bold text-slate-900 block">OPEN CAMERA</span>
-                  <span className="text-[10px] text-slate-500 mt-1 block">Live Device Capture</span>
-                  <input
-                    type="file"
-                    accept="image/*"
-                    capture="environment"
-                    onChange={(e) => handlePhotoSelect(e, 'LIVE_CAMERA')}
-                    className="hidden"
-                  />
-                </label>
+                {/* Option 1: Live Camera / Webcam Capture */}
+                <button
+                  type="button"
+                  onClick={() => setShowCameraModal(true)}
+                  className="p-6 border-2 border-dashed border-blue-200 hover:border-blue-500 rounded-2xl bg-blue-50/40 hover:bg-blue-50/90 text-center cursor-pointer flex flex-col items-center justify-center transition-all group shadow-2xs"
+                >
+                  <div className="w-12 h-12 rounded-2xl bg-blue-100/80 text-blue-700 flex items-center justify-center mb-2 group-hover:scale-110 group-hover:bg-blue-600 group-hover:text-white transition-all shadow-sm">
+                    <Camera className="w-6 h-6" />
+                  </div>
+                  <span className="text-xs font-bold text-slate-900 block">TAKE PHOTO</span>
+                  <span className="text-[10px] text-slate-500 mt-1 block">Live Camera / Webcam</span>
+                </button>
 
-                <label className="p-6 border-2 border-dashed border-slate-300 hover:border-slate-400 rounded-2xl bg-slate-50 text-center cursor-pointer flex flex-col items-center justify-center transition-colors">
-                  <Upload className="w-8 h-8 text-slate-700 mb-2" />
-                  <span className="text-xs font-bold text-slate-900 block">GALLERY UPLOAD</span>
-                  <span className="text-[10px] text-slate-500 mt-1 block">Uploaded Image File</span>
+                {/* Option 2: Gallery / File Upload */}
+                <label className="p-6 border-2 border-dashed border-slate-300 hover:border-slate-500 rounded-2xl bg-slate-50 hover:bg-slate-100 text-center cursor-pointer flex flex-col items-center justify-center transition-all group shadow-2xs">
+                  <div className="w-12 h-12 rounded-2xl bg-slate-200/80 text-slate-700 flex items-center justify-center mb-2 group-hover:scale-110 group-hover:bg-slate-700 group-hover:text-white transition-all shadow-sm">
+                    <Upload className="w-6 h-6" />
+                  </div>
+                  <span className="text-xs font-bold text-slate-900 block">UPLOAD PHOTO</span>
+                  <span className="text-[10px] text-slate-500 mt-1 block">From Device / Gallery</span>
                   <input
                     type="file"
-                    accept="image/*"
+                    accept="image/jpeg,image/png,image/webp"
                     onChange={(e) => handlePhotoSelect(e, 'UPLOAD')}
                     className="hidden"
                   />
                 </label>
               </div>
             )}
+
+            {/* Worker Camera Modal */}
+            <CameraCaptureModal
+              isOpen={showCameraModal}
+              onClose={() => setShowCameraModal(false)}
+              onCapture={handleCameraCapture}
+              onFallbackUpload={() => {
+                const inputEl = document.createElement('input');
+                inputEl.type = 'file';
+                inputEl.accept = 'image/jpeg,image/png,image/webp';
+                inputEl.onchange = (ev: any) => handlePhotoSelect(ev, 'UPLOAD');
+                inputEl.click();
+              }}
+              title="Worker Resolution Evidence Capture"
+            />
 
             {verifyResult ? (
               <div className={`p-5 border rounded-2xl text-left space-y-4 ${
@@ -454,29 +543,67 @@ export const WorkerTaskDetailPage: React.FC = () => {
                   <div className="space-y-2 text-xs">
                     <div className="flex justify-between items-center bg-white p-2.5 rounded border border-slate-100">
                       <span className="font-semibold text-slate-700">Evidence Quality:</span>
-                      <span className="font-bold text-slate-900">{verifyResult.detailed_result.evidence_quality.toFixed(1)} / 100</span>
+                      <span className="font-bold text-slate-900">
+                        {verifyResult.detailed_result.evidence_quality != null
+                          ? `${verifyResult.detailed_result.evidence_quality.toFixed(1)} / 100`
+                          : `${(verifyResult.integrity_score ?? 100).toFixed(1)} / 100`}
+                      </span>
                     </div>
                     <div className="flex justify-between items-center bg-white p-2.5 rounded border border-slate-100">
                       <span className="font-semibold text-slate-700">Location:</span>
-                      <span className={`font-bold ${verifyResult.detailed_result.location.status === 'PASS' ? 'text-emerald-700' : verifyResult.detailed_result.location.status === 'UNUSABLE' ? 'text-amber-700' : 'text-rose-700'}`}>
-                        {verifyResult.detailed_result.location.status === 'PASS' ? '✓ PASS' : verifyResult.detailed_result.location.status === 'UNUSABLE' ? '⚠ UNUSABLE' : '✕ FAIL'}
-                        {verifyResult.detailed_result.location.accuracy_meters ? ` (Accuracy: ±${verifyResult.detailed_result.location.accuracy_meters}m)` : ''}
+                      <span className={`font-bold ${
+                        ['GPS_PASS', 'PASS'].includes(verifyResult.detailed_result.location?.status)
+                          ? 'text-emerald-700'
+                          : ['GPS_BORDERLINE', 'BORDERLINE', 'GPS_UNAVAILABLE', 'UNAVAILABLE', 'UNUSABLE'].includes(verifyResult.detailed_result.location?.status)
+                            ? 'text-amber-700'
+                            : 'text-rose-700'
+                      }`}>
+                        {['GPS_PASS', 'PASS'].includes(verifyResult.detailed_result.location?.status)
+                          ? '✓ PASS'
+                          : ['GPS_BORDERLINE', 'BORDERLINE'].includes(verifyResult.detailed_result.location?.status)
+                            ? '⚠ BORDERLINE'
+                            : ['GPS_UNAVAILABLE', 'UNAVAILABLE', 'UNUSABLE'].includes(verifyResult.detailed_result.location?.status)
+                              ? '⚠ APPROXIMATE'
+                              : '✕ FAIL'}
+                        {verifyResult.detailed_result.location?.accuracy_meters ? ` (Accuracy: ±${verifyResult.detailed_result.location.accuracy_meters}m)` : ''}
                       </span>
                     </div>
                     <div className="flex justify-between items-center bg-white p-2.5 rounded border border-slate-100">
                       <span className="font-semibold text-slate-700">Scene Match:</span>
-                      <span className={`font-bold ${verifyResult.detailed_result.scene.status === 'PASS' || verifyResult.detailed_result.scene.status === 'CONSISTENT' ? 'text-emerald-700' : verifyResult.detailed_result.scene.status === 'UNCERTAIN' ? 'text-amber-700' : 'text-rose-700'}`}>
-                        {verifyResult.detailed_result.scene.status === 'PASS' || verifyResult.detailed_result.scene.status === 'CONSISTENT' ? '✓ STRONG' : verifyResult.detailed_result.scene.status === 'UNCERTAIN' ? '⚠ UNCERTAIN' : '✕ FAIL'}
+                      <span className={`font-bold ${
+                        ['STRONG_MATCH', 'WEAK_MATCH', 'PASS', 'CONSISTENT'].includes(verifyResult.detailed_result.scene?.status)
+                          ? 'text-emerald-700'
+                          : ['UNCERTAIN', 'BORDERLINE'].includes(verifyResult.detailed_result.scene?.status)
+                            ? 'text-amber-700'
+                            : 'text-rose-700'
+                      }`}>
+                        {['STRONG_MATCH', 'WEAK_MATCH', 'PASS', 'CONSISTENT'].includes(verifyResult.detailed_result.scene?.status)
+                          ? '✓ STRONG MATCH'
+                          : ['UNCERTAIN', 'BORDERLINE'].includes(verifyResult.detailed_result.scene?.status)
+                            ? '⚠ UNCERTAIN'
+                            : '✕ DIFFERENT SCENE'}
                       </span>
                     </div>
                     <div className="flex justify-between items-center bg-white p-2.5 rounded border border-slate-100">
                       <span className="font-semibold text-slate-700">Issue Resolved:</span>
-                      <span className={`font-bold ${verifyResult.detailed_result.issue.status === 'MATCH' ? 'text-emerald-700' : 'text-rose-700'}`}>
-                        {verifyResult.detailed_result.issue.status === 'MATCH' ? '✓ RESOLVED' : '✕ STILL PRESENT'}
+                      <span className={`font-bold ${
+                        ['RESOLVED', 'SUPPORTED', 'MATCH'].includes(verifyResult.detailed_result.issue?.status)
+                          ? 'text-emerald-700'
+                          : ['PARTIAL_REDUCTION', 'PARTIAL', 'MANUAL_REVIEW'].includes(verifyResult.detailed_result.issue?.status)
+                            ? 'text-amber-700'
+                            : 'text-rose-700'
+                      }`}>
+                        {['RESOLVED', 'SUPPORTED', 'MATCH'].includes(verifyResult.detailed_result.issue?.status)
+                          ? '✓ RESOLVED'
+                          : ['PARTIAL_REDUCTION', 'PARTIAL'].includes(verifyResult.detailed_result.issue?.status)
+                            ? '⚠ PARTIAL'
+                            : verifyResult.detailed_result.issue?.status === 'MANUAL_REVIEW'
+                              ? '⚠ MANUAL REVIEW'
+                              : '✕ STILL PRESENT'}
                       </span>
                     </div>
                     <div className="mt-3 p-3 bg-white border border-slate-200 rounded-lg text-slate-700 italic">
-                      {verifyResult.detailed_result.reason}
+                      {verifyResult.detailed_result.reason || 'Evidence verification complete.'}
                     </div>
                   </div>
                 ) : (

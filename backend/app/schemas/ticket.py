@@ -1,5 +1,5 @@
 from pydantic import BaseModel, Field
-from typing import Optional
+from typing import Optional, List
 import datetime
 from app.models.entities import TicketStatus
 
@@ -47,6 +47,17 @@ class WardBriefResponse(BaseModel):
     class Config:
         from_attributes = True
 
+
+class TicketEvidenceBriefResponse(BaseModel):
+    id: str
+    evidence_type: str
+    source_type: str
+    file_path: str
+    uploaded_at: datetime.datetime
+
+    class Config:
+        from_attributes = True
+
 class TicketResponse(BaseModel):
     id: str
     ticket_number: str
@@ -71,6 +82,7 @@ class TicketResponse(BaseModel):
     updated_at: datetime.datetime
     ward: Optional[WardBriefResponse] = None
     assigned_worker: Optional[WorkerBriefResponse] = None
+    evidences: Optional[List[TicketEvidenceBriefResponse]] = None
 
     class Config:
         from_attributes = True
@@ -107,6 +119,8 @@ class ReviewQueueItemResponse(BaseModel):
     primary_concern: Optional[str] = None
     created_at: datetime.datetime
     verification_session_id: Optional[str] = None
+    before_image_url: Optional[str] = None
+    after_image_url: Optional[str] = None
 
 
 class CitizenReportCreate(BaseModel):
@@ -138,5 +152,4 @@ class CitizenTicketTrackResponse(BaseModel):
     before_image_url: Optional[str] = None
     resolution_image_url: Optional[str] = None
     resolution_date: Optional[datetime.datetime] = None
-
 

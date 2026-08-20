@@ -97,28 +97,54 @@ class EvidenceFreshnessService:
         matched_id = None
         explanations = []
 
-        # 1. SHA-256 Exact Duplicate Detection
-        exact_match = (
+        # 1. SHA-256 Exact Duplicate / Cross-Complaint Replay Detection
+        # Check if the exact same image hash exists in a DIFFERENT ticket (cross-complaint replay)
+        cross_ticket_match = (
             db.query(TicketEvidence)
             .filter(
                 TicketEvidence.sha256_hash == current_evidence.sha256_hash,
                 TicketEvidence.id != current_evidence.id,
+                TicketEvidence.ticket_id != current_evidence.ticket_id,
             )
             .first()
         )
-        if exact_match:
+
+        # Also check if worker submitted the EXACT citizen BEFORE image from the same ticket as their AFTER evidence
+        same_ticket_before_match = (
+            db.query(TicketEvidence)
+            .filter(
+                TicketEvidence.sha256_hash == current_evidence.sha256_hash,
+                TicketEvidence.id != current_evidence.id,
+                TicketEvidence.ticket_id == current_evidence.ticket_id,
+                TicketEvidence.evidence_type == "BEFORE",
+            )
+            .first()
+        )
+
+        if cross_ticket_match:
             reuse_detected = True
             is_exact_dup = True
-            matched_id = exact_match.id
+            matched_id = cross_ticket_match.id
             base_score = 0.0
-            explanations.append("Possible evidence reuse: Exact duplicate image payload (SHA-256 match) detected in historical evidence database.")
+            explanations.append(
+                f"Possible evidence reuse (REPLAY ATTACK): Exact duplicate image payload (SHA-256 match) was previously submitted on a different complaint (Ticket ID: {cross_ticket_match.ticket_id})."
+            )
+        elif same_ticket_before_match:
+            reuse_detected = True
+            is_exact_dup = True
+            matched_id = same_ticket_before_match.id
+            base_score = 0.0
+            explanations.append(
+                "Possible evidence reuse (REPLAY ATTACK): Worker submitted the exact citizen complaint BEFORE image as AFTER verification evidence."
+            )
 
-        # 2. Perceptual Hash Near-Duplicate Detection (if not exact duplicate)
+        # 2. Cross-Ticket Perceptual Hash Duplicate Detection
         if not is_exact_dup and current_evidence.perceptual_hash:
-            historical_records = (
+            cross_ticket_records = (
                 db.query(TicketEvidence)
                 .filter(
                     TicketEvidence.id != current_evidence.id,
+                    TicketEvidence.ticket_id != current_evidence.ticket_id,
                     TicketEvidence.perceptual_hash.isnot(None),
                 )
                 .all()
@@ -126,19 +152,20 @@ class EvidenceFreshnessService:
             
             min_dist = 64
             closest_record = None
-            for rec in historical_records:
+            for rec in cross_ticket_records:
                 dist = compute_phash_hamming_distance(current_evidence.perceptual_hash, rec.perceptual_hash)
                 if dist < min_dist:
                     min_dist = dist
                     closest_record = rec
 
-            if min_dist <= 6 and closest_record:
+            # Only flag if extremely close (Hamming distance <= 2) across different tickets
+            if min_dist <= 2 and closest_record:
                 reuse_detected = True
                 is_near_dup = True
                 matched_id = closest_record.id
-                deduction = (7 - min_dist) * 12.5  # Hamming 0=87.5% deduction, 6=12.5% deduction
+                deduction = 40.0
                 base_score = max(0.0, base_score - deduction)
-                explanations.append(f"Possible evidence reuse: Visually near-duplicate image detected (Perceptual Hash distance {min_dist} bits <= 6).")
+                explanations.append(f"Possible evidence reuse: Visually near-duplicate image detected across different complaints (Perceptual Hash distance {min_dist} bits <= 2).")
 
         # 3. Capture Timestamp Freshness Analysis
         now_utc = datetime.datetime.now(datetime.timezone.utc)

@@ -55,12 +55,13 @@ class LocalStorageProvider(BaseStorageProvider):
         with open(target_path, "wb") as f:
             f.write(file_bytes)
 
-        relative_path = f"uploads/evidence/{unique_filename}"
+        relative_path = f"/uploads/evidence/{unique_filename}"
         return relative_path, unique_filename
 
     def get_file_path(self, relative_path: str) -> str:
         backend_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
-        abs_path = os.path.abspath(os.path.join(backend_dir, relative_path))
+        clean_path = relative_path.lstrip("/\\")
+        abs_path = os.path.abspath(os.path.join(backend_dir, clean_path))
         
         if not abs_path.startswith(backend_dir):
             raise HTTPException(

@@ -2,9 +2,12 @@ from typing import List, Optional
 import random
 import datetime
 import uuid
+import logging
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session, joinedload
 from app.db.session import get_db
+
+logger = logging.getLogger("meikaan")
 from app.models.entities import (
     Ticket, Worker, Ward, User, UserRole, TicketStatus,
     ReviewAction, AuditLog, VerificationSession, VerificationResult, VerificationSignal,
@@ -13,6 +16,7 @@ from app.models.entities import (
 from app.schemas.ticket import (
     TicketCreate, TicketResponse, TicketAssign, TicketStatusUpdate,
     WardBriefResponse, WorkerBriefResponse,
+    TicketEvidenceBriefResponse,
     ReviewActionRequest, ReviewActionResponse, ReviewQueueItemResponse,
     CitizenReportCreate, CitizenDisputeCreate, WorkerStartTaskRequest,
 )
@@ -40,6 +44,17 @@ def _format_ticket_response(ticket: Ticket) -> TicketResponse:
             email=ticket.assigned_worker.user.email
         )
 
+    evidence_brief = [
+        TicketEvidenceBriefResponse(
+            id=e.id,
+            evidence_type=e.evidence_type,
+            source_type=e.source_type,
+            file_path=e.file_path,
+            uploaded_at=e.uploaded_at,
+        )
+        for e in (ticket.evidences or [])
+    ]
+
     return TicketResponse(
         id=ticket.id,
         ticket_number=ticket.ticket_number,
@@ -63,7 +78,8 @@ def _format_ticket_response(ticket: Ticket) -> TicketResponse:
         created_at=ticket.created_at,
         updated_at=ticket.updated_at,
         ward=ward_brief,
-        assigned_worker=worker_brief
+        assigned_worker=worker_brief,
+        evidences=evidence_brief,
     )
 
 @router.post("", response_model=TicketResponse, status_code=status.HTTP_201_CREATED)
@@ -112,7 +128,7 @@ async def create_ticket(
         accuracy_meters=payload.accuracy_meters,
         location_captured_at=payload.location_captured_at or now,
         location_source=payload.location_source or "device_gps",
-        location_status=payload.location_status or ("GPS_CAPTURED" if payload.latitude and payload.longitude else "GPS_UNAVAILABLE"),
+        location_status=payload.location_status or ("GPS_CAPTURED" if payload.latitude is not None and payload.longitude is not None else "GPS_UNAVAILABLE"),
         ward_derived_from=derived_info.get("derived_from", "gps_polygon"),
         ward_id=ward.id,
         priority=payload.priority,
@@ -137,7 +153,8 @@ async def list_tickets(
     """
     query = db.query(Ticket).options(
         joinedload(Ticket.ward),
-        joinedload(Ticket.assigned_worker).joinedload(Worker.user)
+        joinedload(Ticket.assigned_worker).joinedload(Worker.user),
+        joinedload(Ticket.evidences),
     )
 
     if current_user.role == UserRole.FIELD_WORKER:
@@ -228,7 +245,8 @@ async def get_review_queue(
         db.query(Ticket)
         .options(
             joinedload(Ticket.ward),
-            joinedload(Ticket.assigned_worker).joinedload(Worker.user)
+            joinedload(Ticket.assigned_worker).joinedload(Worker.user),
+            joinedload(Ticket.evidences)
         )
         .filter(Ticket.status.in_([TicketStatus.HUMAN_REVIEW.value, TicketStatus.SUSPICIOUS.value, TicketStatus.PENDING_VERIFICATION.value]))
         .order_by(Ticket.updated_at.desc())
@@ -265,6 +283,9 @@ async def get_review_queue(
         worker_name = t.assigned_worker.user.full_name if t.assigned_worker and t.assigned_worker.user else "Unassigned"
         ward_name = t.ward.name if t.ward else "Unassigned Ward"
 
+        before_ev = next((e for e in (t.evidences or []) if e.evidence_type == EvidenceType.BEFORE.value), None)
+        after_ev = next((e for e in (t.evidences or []) if e.evidence_type in (EvidenceType.AFTER.value, EvidenceType.LIVE_VERIFICATION.value)), None)
+
         result_items.append(ReviewQueueItemResponse(
             ticket_id=t.id,
             ticket_number=t.ticket_number,
@@ -279,6 +300,8 @@ async def get_review_queue(
             primary_concern=explanation or f"Ticket status is {t.status}",
             created_at=t.created_at,
             verification_session_id=session.id if session else None,
+            before_image_url=before_ev.file_path if before_ev else None,
+            after_image_url=after_ev.file_path if after_ev else None,
         ))
 
     return result_items
@@ -296,7 +319,8 @@ async def get_ticket_by_id(
     """
     ticket = db.query(Ticket).options(
         joinedload(Ticket.ward),
-        joinedload(Ticket.assigned_worker).joinedload(Worker.user)
+        joinedload(Ticket.assigned_worker).joinedload(Worker.user),
+        joinedload(Ticket.evidences),
     ).filter(Ticket.id == ticket_id).first()
 
     if not ticket:
@@ -480,8 +504,27 @@ async def create_citizen_ticket(
     if payload.description:
         title = payload.description[:50]
 
-    # Auto-assign available field worker assigned to this ward
-    assigned_worker = db.query(Worker).filter(Worker.ward_id == ward_id).first()
+    # Automatic Worker Assignment: Prioritize primary Field Officer Rajesh Kumar
+    assigned_worker = (
+        db.query(Worker)
+        .join(User, Worker.user_id == User.id)
+        .filter(User.email == "worker@meikaan.gov", Worker.status == "ACTIVE")
+        .first()
+    )
+    if not assigned_worker and ward_id:
+        assigned_worker = (
+            db.query(Worker)
+            .join(User, Worker.user_id == User.id)
+            .filter(Worker.ward_id == ward_id, Worker.status == "ACTIVE")
+            .first()
+        )
+    if not assigned_worker:
+        assigned_worker = (
+            db.query(Worker)
+            .join(User, Worker.user_id == User.id)
+            .filter(Worker.status == "ACTIVE")
+            .first()
+        )
     if not assigned_worker:
         assigned_worker = db.query(Worker).first()
 
@@ -500,7 +543,7 @@ async def create_citizen_ticket(
         accuracy_meters=payload.accuracy_meters,
         location_captured_at=payload.captured_at or now,
         location_source=payload.location_source or "device_gps",
-        location_status=payload.location_status or ("GPS_CAPTURED" if payload.latitude and payload.longitude else "GPS_UNAVAILABLE"),
+        location_status=payload.location_status or ("GPS_CAPTURED" if payload.latitude is not None and payload.longitude is not None else "GPS_UNAVAILABLE"),
         ward_derived_from=derived_info.get("derived_from", "gps_polygon"),
         ward_id=ward_id,
         assigned_worker_id=assigned_worker_id,
@@ -517,7 +560,9 @@ async def create_citizen_ticket(
         import hashlib
         import os
         try:
-            image_data = base64.b64decode(payload.photo_base64.split(",")[-1])
+            b64_str = payload.photo_base64.split(",")[-1].strip()
+            b64_str += "=" * ((4 - len(b64_str) % 4) % 4)
+            image_data = base64.b64decode(b64_str)
             sha256_hash = hashlib.sha256(image_data).hexdigest()
             filename = f"citizen_before_{new_ticket.id[:8]}.jpg"
             uploads_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "..", "uploads", "evidence"))
@@ -534,13 +579,18 @@ async def create_citizen_ticket(
                 file_path=rel_path,
                 file_type="image/jpeg",
                 sha256_hash=sha256_hash,
-                latitude=payload.latitude or 12.9716,
-                longitude=payload.longitude or 77.5946
+                latitude=payload.latitude,
+                longitude=payload.longitude
             )
             db.add(evidence)
             db.commit()
+            db.refresh(new_ticket)
         except Exception as e:
-            print(f"Warning saving citizen evidence photo: {e}")
+            logger.error(f"Error saving citizen evidence photo: {e}", exc_info=True)
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Failed to process and attach evidence photo: {str(e)}"
+            )
 
     return _format_ticket_response(new_ticket)
 
@@ -626,7 +676,7 @@ async def track_citizen_ticket(
         "created_at": ticket.created_at,
         "updated_at": ticket.updated_at,
         "ward_name": ticket.ward.name if ticket.ward else "Central Zone",
-        "before_image_url": before_url or "/uploads/evidence/demo_before_a.jpg",
+        "before_image_url": before_url,
         "resolution_image_url": after_url,
         "resolution_date": res_date or ticket.updated_at
     }
@@ -720,7 +770,5 @@ async def dispute_citizen_resolution(
         "ticket_number": ticket.ticket_number,
         "new_status": ticket.status
     }
-
-
 
 
