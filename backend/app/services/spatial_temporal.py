@@ -177,46 +177,58 @@ class TemporalConsistencyService:
         observed_speed_kmh = None
 
         if session.worker_id and evidence and e_lat is not None and e_lon is not None:
-            # Query recent prior AFTER evidence submitted by the same worker on DIFFERENT tickets
+            def _to_utc_dt(val):
+                if val is None:
+                    return None
+                if isinstance(val, str):
+                    try:
+                        val = datetime.datetime.fromisoformat(val.replace("Z", "+00:00"))
+                    except Exception:
+                        return None
+                if isinstance(val, datetime.datetime) and val.tzinfo is None:
+                    return val.replace(tzinfo=datetime.timezone.utc)
+                return val
+
+            curr_utc = _to_utc_dt(evidence.captured_at) or _to_utc_dt(evidence.uploaded_at) or _to_utc_dt(session.started_at) or datetime.datetime.now(datetime.timezone.utc)
+            task_start_utc = _to_utc_dt(session.started_at) or curr_utc
+
+            # Query recent prior verification evidence submitted by the same worker on DIFFERENT tickets completed before this task started
             prior_evidences = (
                 db.query(TicketEvidence)
                 .join(VerificationSession, TicketEvidence.verification_session_id == VerificationSession.id)
                 .filter(
                     VerificationSession.worker_id == session.worker_id,
                     TicketEvidence.id != evidence.id,
-                    TicketEvidence.evidence_type == "AFTER",
+                    TicketEvidence.evidence_type.in_(["AFTER", "LIVE_VERIFICATION"]),
                     TicketEvidence.ticket_id != session.ticket_id,
                     TicketEvidence.latitude.isnot(None),
                     TicketEvidence.longitude.isnot(None),
+                    TicketEvidence.created_at < (session.started_at or curr_utc),
                 )
-                .order_by(TicketEvidence.captured_at.desc(), TicketEvidence.uploaded_at.desc())
-                .limit(5)
+                .order_by(TicketEvidence.created_at.desc())
+                .limit(3)
                 .all()
             )
 
-            current_time = evidence.captured_at or evidence.uploaded_at or session.started_at
-
             for prior in prior_evidences:
-                prior_time = prior.captured_at or prior.uploaded_at
-                if not prior_time or not current_time:
+                prior_utc = _to_utc_dt(prior.uploaded_at) or _to_utc_dt(prior.captured_at) or _to_utc_dt(prior.created_at)
+                if not prior_utc or not curr_utc:
                     continue
 
-                # Calculate time delta in seconds
-                dt_sec = abs((current_time - prior_time).total_seconds())
-                if dt_sec <= 0:
-                    dt_sec = 1.0  # Prevent divide-by-zero
+                # Transit elapsed time between previous task completion and current task start
+                dt_sec = max(1.0, (task_start_utc - prior_utc).total_seconds())
 
                 # Calculate distance between consecutive verification tasks
                 task_dist_m = haversine_distance_meters(
                     float(prior.latitude), float(prior.longitude), float(e_lat), float(e_lon)
                 )
 
-                # Speed = distance / time
+                # Speed = distance / time (in km/h)
                 speed_mps = task_dist_m / dt_sec
                 speed_kmh = round(speed_mps * 3.6, 1)
 
-                # If distance > 500m and travel speed > 120 km/h (unlikely urban speed cap)
-                if task_dist_m > 500.0 and speed_kmh > 120.0 and dt_sec < 1800:
+                # If distance > 1,000m and travel speed > 150 km/h with a transit window under 1 hour
+                if task_dist_m > 1000.0 and speed_kmh > 150.0 and dt_sec < 3600:
                     is_anomaly = True
                     observed_speed_kmh = speed_kmh
                     spatial_score = 0.0

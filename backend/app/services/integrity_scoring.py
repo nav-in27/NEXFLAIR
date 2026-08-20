@@ -326,7 +326,7 @@ class IntegrityScoringService:
             explanations.append(f"CLOSURE NOT VERIFIED: Location Mismatch detected. Worker evidence was captured {dist_m}m away.")
         elif scene_status in ("DIFFERENT_SCENE", "FAIL"):
             decision = "CLOSURE_NOT_VERIFIED"
-            overall_score = round(min(15.0, scene_score), 1)
+            overall_score = round(min(20.0, scene_score), 1)
             overall_confidence = 0.90
             explanations.append("CLOSURE NOT VERIFIED: Scene Identity Mismatch detected.")
         elif image_load_status != "SUCCESS" and "MISSING" in image_load_status:
@@ -343,7 +343,7 @@ class IntegrityScoringService:
             decision = "CLOSURE_NOT_VERIFIED"
             explanations.append(f"CLOSURE NOT VERIFIED: Civic hazard is still present (hazard reduction: {hazard_score:.1f}%).")
             weighted_score_sum = sum(sub_scores[k] * self.weights[k] for k in self.weights)
-            overall_score = round(max(0.0, min(25.0, weighted_score_sum)), 1)
+            overall_score = round(max(0.0, min(30.0, weighted_score_sum)), 1)
             overall_confidence = round(sum(sub_confs[k] * self.weights[k] for k in self.weights), 2)
         elif issue_status == "PARTIAL_REDUCTION":
             decision = "HUMAN_REVIEW"
@@ -384,59 +384,53 @@ class IntegrityScoringService:
             overall_score = round(max(0.0, min(100.0, weighted_score_sum)), 1)
             overall_confidence = round(sum(sub_confs[k] * self.weights[k] for k in self.weights), 2)
 
+        final_explanation = " | ".join(explanations) if explanations else "Evidence integrity verification complete."
+
         # Structured backend audit & debug logging
         logger.info(
             "\n"
             "==================================================\n"
-            "VERIFICATION REQUEST:\n"
-            "  taskId=%s | complaintId=%s | workerId=%s | evidenceId=%s\n"
-            "COMPLAINT LOCATION:\n"
-            "  lat=%s | lng=%s | accuracy=%s\n"
-            "EVIDENCE LOCATION:\n"
-            "  lat=%s | lng=%s | accuracy=%s | capturedAt=%s | source=%s\n"
-            "DISTANCE:\n"
-            "  calculatedDistance=%s m | tolerance=%s m\n"
-            "GPS DECISION:\n"
-            "  status=%s | spatialScore=%.1f\n"
-            "SCENE:\n"
-            "  status=%s | score=%.1f | confidence=%.2f\n"
-            "ISSUE:\n"
-            "  status=%s | score=%.1f\n"
-            "INTEGRITY:\n"
-            "  exactDup=%s | anomaly=%s | temporalStatus=%s\n"
-            "FINAL DECISION:\n"
-            "  decision=%s | score=%.1f | confidence=%.2f\n"
+            "VERIFICATION AUDIT LOG:\n"
+            "  complaint_id=%s\n"
+            "  task_id=%s\n"
+            "  worker_id=%s\n"
+            "  evidence_id=%s\n"
+            "  complaint_coordinates=(%s, %s)\n"
+            "  worker_coordinates=(%s, %s)\n"
+            "  distance_meters=%s\n"
+            "  gps_accuracy_meters=%s\n"
+            "  tolerance_meters=%s\n"
+            "  complaint_image_id=%s\n"
+            "  evidence_image_id=%s\n"
+            "  scene_score=%.1f\n"
+            "  resolution_score=%.1f\n"
+            "  quality_score=%.1f\n"
+            "  temporal_score=%.1f\n"
+            "  final_score=%.1f\n"
+            "  final_decision=%s\n"
+            "  decision_reason=%s\n"
             "==================================================",
-            session.id,
             ticket.id if ticket else None,
+            session.id,
             session.worker_id,
             after_ev.id if after_ev else None,
             ticket.latitude if ticket else None,
             ticket.longitude if ticket else None,
-            getattr(ticket, 'accuracy_meters', None) if ticket else None,
             after_ev.latitude if after_ev else None,
             after_ev.longitude if after_ev else None,
-            getattr(after_ev, 'accuracy_meters', None) if after_ev else None,
-            after_ev.captured_at if after_ev else None,
-            getattr(after_ev, 'source_type', None) if after_ev else None,
             dist_m,
+            acc_m,
             tolerance_m,
-            location_status,
-            spatial_score,
-            scene_status,
+            before_ev.id if before_ev else None,
+            after_ev.id if after_ev else None,
             scene_score,
-            scene_conf,
-            issue_status,
             hazard_score,
-            exact_dup,
-            is_anomaly,
-            temporal_status,
-            decision,
+            quality_score,
+            temporal_score,
             overall_score,
-            overall_confidence,
+            decision,
+            final_explanation,
         )
-
-        final_explanation = " | ".join(explanations) if explanations else "Evidence integrity verification complete."
 
         detailed_result = {
             "decision": decision,

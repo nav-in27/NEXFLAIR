@@ -497,3 +497,84 @@ def test_8_two_different_complaints_do_not_mix():
         db.close()
 
 
+def test_scenario_f_gallery_upload_evidence_source():
+    """TEST F: Gallery image -> GALLERY_UPLOAD source, verification works."""
+    db = SessionLocal()
+    try:
+        session, worker, t, ev_b, ev_a = create_test_session(
+            db, "POTHOLE",
+            13.0031, 77.5643, 15.0,
+            13.0031, 77.5643, 15.0,
+            IMG_POTHOLE_SRC, IMG_FIXED_SRC
+        )
+        ev_a.source_type = "GALLERY_UPLOAD"
+        db.commit()
+
+        scoring = IntegrityScoringService()
+        res = scoring.finalize_verification(db, session.id)
+
+        assert res.decision == "VERIFIED"
+        assert ev_a.source_type == "GALLERY_UPLOAD"
+    finally:
+        db.close()
+
+
+def test_scenario_g_live_camera_evidence_source():
+    """TEST G: Live camera image -> LIVE_CAMERA source, verification works."""
+    db = SessionLocal()
+    try:
+        session, worker, t, ev_b, ev_a = create_test_session(
+            db, "POTHOLE",
+            13.0031, 77.5643, 15.0,
+            13.0031, 77.5643, 15.0,
+            IMG_POTHOLE_SRC, IMG_FIXED_SRC
+        )
+        ev_a.source_type = "LIVE_CAMERA"
+        db.commit()
+
+        scoring = IntegrityScoringService()
+        res = scoring.finalize_verification(db, session.id)
+
+        assert res.decision == "VERIFIED"
+        assert ev_a.source_type == "LIVE_CAMERA"
+    finally:
+        db.close()
+
+
+def test_scenario_h_task_a_task_b_state_isolation():
+    """TEST H: Open Task A -> submit -> open Task B -> Task B contains only Task B evidence/GPS/result."""
+    db = SessionLocal()
+    try:
+        # Task A
+        sessionA, workerA, tA, ev_bA, ev_aA = create_test_session(
+            db, "POTHOLE",
+            13.0031, 77.5643, 15.0,
+            13.0031, 77.5643, 15.0,
+            IMG_POTHOLE_SRC, IMG_FIXED_SRC
+        )
+        scoring = IntegrityScoringService()
+        resA = scoring.finalize_verification(db, sessionA.id)
+
+        # Task B (Separate complaint and different coordinates)
+        sessionB, workerB, tB, ev_bB, ev_aB = create_test_session(
+            db, "WATER_SEWAGE",
+            13.0400, 77.5900, 20.0,
+            13.0400, 77.5900, 20.0,
+            IMG_POTHOLE_SRC, IMG_FIXED_SRC
+        )
+        resB = scoring.finalize_verification(db, sessionB.id)
+
+        # Verify strict isolation
+        assert tA.id != tB.id
+        assert sessionA.id != sessionB.id
+        assert ev_aA.ticket_id == tA.id
+        assert ev_aB.ticket_id == tB.id
+        assert tA.latitude == 13.0031
+        assert tB.latitude == 13.0400
+        assert resA.detailed_result["location"]["distance_meters"] == 0.0
+        assert resB.detailed_result["location"]["distance_meters"] == 0.0
+    finally:
+        db.close()
+
+
+

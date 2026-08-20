@@ -108,7 +108,7 @@ export const WorkerTaskDetailPage: React.FC = () => {
           setError('LOCATION ACCESS REQUIRED: Please enable device location permissions to start this task.');
           setIsStartingTask(false);
         },
-        { enableHighAccuracy: true, timeout: 8000 }
+        { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
       );
     } else {
       setError('LOCATION ACCESS REQUIRED: Geolocation is not supported by this browser.');
@@ -133,7 +133,7 @@ export const WorkerTaskDetailPage: React.FC = () => {
           setEvLoc({ status: 'FAILED' });
           setError('GPS signal unavailable. Verification will evaluate visual evidence.');
         },
-        { enableHighAccuracy: true, timeout: 8000 }
+        { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
       );
     } else {
       setEvLoc({ status: 'FAILED' });

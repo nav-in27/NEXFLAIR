@@ -117,7 +117,7 @@ export const CameraCaptureModal: React.FC<Props> = ({
           status: err.code === err.PERMISSION_DENIED ? 'GPS_PERMISSION_DENIED' : 'GPS_UNAVAILABLE',
         });
       },
-      { enableHighAccuracy: true, timeout: 8000, maximumAge: 0 }
+      { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
     );
   };
 
