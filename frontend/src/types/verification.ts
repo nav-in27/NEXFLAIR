@@ -8,6 +8,8 @@ export interface VerificationStatus {
   status: string;
   score?: number;
   accuracy_meters?: number;
+  distance_meters?: number;
+  tolerance_meters?: number;
 }
 
 export interface VerificationDetailedResult {

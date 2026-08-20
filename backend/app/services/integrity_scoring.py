@@ -161,6 +161,8 @@ class IntegrityScoringService:
         spatial_conf = 0.90
         location_status = "GPS_UNAVAILABLE"
         dist_m = None
+        tolerance_m = None
+        acc_m = None
         try:
             spatial_svc = get_temporal_consistency_service()
             res_sp = spatial_svc.analyze(db, session_id)
@@ -168,6 +170,8 @@ class IntegrityScoringService:
             spatial_conf = res_sp.confidence
             location_status = res_sp.location_status
             dist_m = res_sp.distance_meters
+            tolerance_m = res_sp.tolerance_meters
+            acc_m = res_sp.accuracy_meters or (getattr(after_ev, 'accuracy_meters', None) if after_ev else None)
         except Exception as exc:
             logger.warning("[FusionEngine] Spatial analysis error: %s", exc)
             spatial_score = 50.0
@@ -380,17 +384,56 @@ class IntegrityScoringService:
             overall_score = round(max(0.0, min(100.0, weighted_score_sum)), 1)
             overall_confidence = round(sum(sub_confs[k] * self.weights[k] for k in self.weights), 2)
 
-        # Concise backend audit logging
+        # Structured backend audit & debug logging
         logger.info(
-            "[VerificationEngine] complaint_id=%s before_ev=%s after_ev=%s image_load=%s matching=%s GPS=%s decision=%s score=%.1f",
-            session.ticket_id,
-            before_ev.id if before_ev else None,
+            "\n"
+            "==================================================\n"
+            "VERIFICATION REQUEST:\n"
+            "  taskId=%s | complaintId=%s | workerId=%s | evidenceId=%s\n"
+            "COMPLAINT LOCATION:\n"
+            "  lat=%s | lng=%s | accuracy=%s\n"
+            "EVIDENCE LOCATION:\n"
+            "  lat=%s | lng=%s | accuracy=%s | capturedAt=%s | source=%s\n"
+            "DISTANCE:\n"
+            "  calculatedDistance=%s m | tolerance=%s m\n"
+            "GPS DECISION:\n"
+            "  status=%s | spatialScore=%.1f\n"
+            "SCENE:\n"
+            "  status=%s | score=%.1f | confidence=%.2f\n"
+            "ISSUE:\n"
+            "  status=%s | score=%.1f\n"
+            "INTEGRITY:\n"
+            "  exactDup=%s | anomaly=%s | temporalStatus=%s\n"
+            "FINAL DECISION:\n"
+            "  decision=%s | score=%.1f | confidence=%.2f\n"
+            "==================================================",
+            session.id,
+            ticket.id if ticket else None,
+            session.worker_id,
             after_ev.id if after_ev else None,
-            image_load_status,
-            scene_status,
+            ticket.latitude if ticket else None,
+            ticket.longitude if ticket else None,
+            getattr(ticket, 'accuracy_meters', None) if ticket else None,
+            after_ev.latitude if after_ev else None,
+            after_ev.longitude if after_ev else None,
+            getattr(after_ev, 'accuracy_meters', None) if after_ev else None,
+            after_ev.captured_at if after_ev else None,
+            getattr(after_ev, 'source_type', None) if after_ev else None,
+            dist_m,
+            tolerance_m,
             location_status,
+            spatial_score,
+            scene_status,
+            scene_score,
+            scene_conf,
+            issue_status,
+            hazard_score,
+            exact_dup,
+            is_anomaly,
+            temporal_status,
             decision,
-            overall_score
+            overall_score,
+            overall_confidence,
         )
 
         final_explanation = " | ".join(explanations) if explanations else "Evidence integrity verification complete."
@@ -401,7 +444,9 @@ class IntegrityScoringService:
             "location": {
                 "status": location_status,
                 "score": spatial_score,
-                "accuracy_meters": getattr(after_ev, 'accuracy_meters', None) if after_ev else None,
+                "distance_meters": dist_m,
+                "tolerance_meters": tolerance_m,
+                "accuracy_meters": acc_m,
             },
             "scene": {
                 "status": scene_status,

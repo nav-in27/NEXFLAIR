@@ -49,7 +49,9 @@ class SpatialTemporalResult:
     """Immutable result from Spatial and Temporal Consistency Analysis."""
     spatial_score: float = 100.0
     distance_meters: Optional[float] = None
-    location_status: str = "UNAVAILABLE"  # PASS, UNCERTAIN, FAIL, UNAVAILABLE
+    tolerance_meters: Optional[float] = None
+    accuracy_meters: Optional[float] = None
+    location_status: str = "UNAVAILABLE"  # GPS_PASS, GPS_BORDERLINE, GPS_MISMATCH, GPS_UNAVAILABLE
     observed_speed_kmh: Optional[float] = None
     is_spatio_temporal_anomaly: bool = False
     low_confidence: bool = False
@@ -247,6 +249,8 @@ class TemporalConsistencyService:
         return SpatialTemporalResult(
             spatial_score=spatial_score,
             distance_meters=dist_m,
+            tolerance_meters=tolerance if dist_m is not None else None,
+            accuracy_meters=evidence_accuracy if dist_m is not None else None,
             location_status=location_status,
             observed_speed_kmh=observed_speed_kmh,
             is_spatio_temporal_anomaly=is_anomaly,

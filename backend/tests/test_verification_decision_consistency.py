@@ -376,3 +376,124 @@ def test_target_scenario_e_live_pothole_repaired_167m_verified():
     finally:
         db.close()
 
+
+def test_1_same_coordinates_zero_dist_gps_pass():
+    """TEST 1: Same coordinates -> distance ≈ 0 -> GPS PASS."""
+    db = SessionLocal()
+    try:
+        session, worker, t, ev_b, ev_a = create_test_session(
+            db, "POTHOLE",
+            13.0031, 77.5643, 15.0,
+            13.0031, 77.5643, 15.0,
+            IMG_POTHOLE_SRC, IMG_FIXED_SRC
+        )
+        spatial_svc = get_temporal_consistency_service()
+        res = spatial_svc.analyze(db, session.id)
+        assert res.location_status == "GPS_PASS"
+        assert res.distance_meters == 0.0
+    finally:
+        db.close()
+
+
+def test_2_distance_100m_tolerance_200m_gps_pass():
+    """TEST 2: distance 100m, tolerance 200m -> GPS PASS."""
+    db = SessionLocal()
+    try:
+        # 0.0009 deg lat ~ 100m
+        session, worker, t, ev_b, ev_a = create_test_session(
+            db, "POTHOLE",
+            13.0031, 77.5643, 100.0,
+            13.0040, 77.5643, 100.0,
+            IMG_POTHOLE_SRC, IMG_FIXED_SRC
+        )
+        spatial_svc = get_temporal_consistency_service()
+        res = spatial_svc.analyze(db, session.id)
+        assert res.location_status == "GPS_PASS"
+        assert 95.0 <= res.distance_meters <= 105.0
+    finally:
+        db.close()
+
+
+def test_3_distance_199m_tolerance_200m_gps_pass():
+    """TEST 3: distance 199m, tolerance 200m -> GPS PASS."""
+    db = SessionLocal()
+    try:
+        # 0.00179 deg lat ~ 199m
+        session, worker, t, ev_b, ev_a = create_test_session(
+            db, "POTHOLE",
+            13.0031, 77.5643, 100.0,
+            13.00489, 77.5643, 100.0,
+            IMG_POTHOLE_SRC, IMG_FIXED_SRC
+        )
+        spatial_svc = get_temporal_consistency_service()
+        res = spatial_svc.analyze(db, session.id)
+        assert res.location_status == "GPS_PASS"
+        assert res.distance_meters <= 200.0
+    finally:
+        db.close()
+
+
+def test_4_distance_201m_tolerance_200m_borderline():
+    """TEST 4: distance 205m, tolerance 200m -> GPS BORDERLINE."""
+    db = SessionLocal()
+    try:
+        # 0.00185 deg lat ~ 205m
+        session, worker, t, ev_b, ev_a = create_test_session(
+            db, "POTHOLE",
+            13.0031, 77.5643, 100.0,
+            13.00495, 77.5643, 100.0,
+            IMG_POTHOLE_SRC, IMG_FIXED_SRC
+        )
+        spatial_svc = get_temporal_consistency_service()
+        res = spatial_svc.analyze(db, session.id)
+        assert res.location_status == "GPS_BORDERLINE"
+    finally:
+        db.close()
+
+
+def test_5_gps_unavailable_returns_unavailable():
+    """TEST 5: GPS unavailable -> GPS UNAVAILABLE -> never fake coordinates."""
+    db = SessionLocal()
+    try:
+        session, worker, t, ev_b, ev_a = create_test_session(
+            db, "POTHOLE",
+            13.0031, 77.5643, 15.0,
+            None, None, None, # Missing evidence GPS
+            IMG_POTHOLE_SRC, IMG_FIXED_SRC
+        )
+        spatial_svc = get_temporal_consistency_service()
+        res = spatial_svc.analyze(db, session.id)
+        assert res.location_status == "GPS_UNAVAILABLE"
+        assert res.distance_meters is None
+    finally:
+        db.close()
+
+
+def test_8_two_different_complaints_do_not_mix():
+    """TEST 8: Two different complaints -> their GPS/evidence records never mix."""
+    db = SessionLocal()
+    try:
+        session1, worker1, t1, ev_b1, ev_a1 = create_test_session(
+            db, "POTHOLE",
+            13.0031, 77.5643, 15.0,
+            13.0031, 77.5643, 15.0,
+            IMG_POTHOLE_SRC, IMG_FIXED_SRC
+        )
+        session2, worker2, t2, ev_b2, ev_a2 = create_test_session(
+            db, "GARBAGE",
+            13.0500, 77.6000, 15.0,
+            13.0500, 77.6000, 15.0,
+            IMG_POTHOLE_SRC, IMG_FIXED_SRC
+        )
+        
+        spatial_svc = get_temporal_consistency_service()
+        res1 = spatial_svc.analyze(db, session1.id)
+        res2 = spatial_svc.analyze(db, session2.id)
+
+        assert res1.distance_meters == 0.0
+        assert res2.distance_meters == 0.0
+        assert session1.ticket_id != session2.ticket_id
+    finally:
+        db.close()
+
+

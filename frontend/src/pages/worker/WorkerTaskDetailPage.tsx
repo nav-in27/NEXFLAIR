@@ -4,7 +4,6 @@ import { ArrowLeft, MapPin, Clock, Camera, Upload, CheckCircle2, AlertCircle, XC
 import { useAuth } from '../../context/AuthContext';
 import { fetchTicketById, startWorkerTaskApi } from '../../services/ticketApi';
 import { startVerificationApi, submitVerificationApi } from '../../services/verificationApi';
-import { uploadEvidenceApi } from '../../services/evidenceApi';
 import { Ticket } from '../../types/ticket';
 import { VerificationSession } from '../../types/verification';
 import { CameraCaptureModal, CameraGpsData } from '../../components/CameraCaptureModal';
@@ -66,6 +65,11 @@ export const WorkerTaskDetailPage: React.FC = () => {
   };
 
   useEffect(() => {
+    setEvidencePhoto('');
+    setEvidenceFile(null);
+    setVerifyResult(null);
+    setEvLoc({ status: 'IDLE' });
+    setError('');
     loadTicket();
   }, [id, token]);
 
@@ -127,7 +131,7 @@ export const WorkerTaskDetailPage: React.FC = () => {
         },
         () => {
           setEvLoc({ status: 'FAILED' });
-          setError('GPS signal unreliable or denied. Evidence will be flagged for review.');
+          setError('GPS signal unavailable. Verification will evaluate visual evidence.');
         },
         { enableHighAccuracy: true, timeout: 8000 }
       );
@@ -175,16 +179,10 @@ export const WorkerTaskDetailPage: React.FC = () => {
     setError('');
 
     try {
-      setVerifyStatusText('1/3. Uploading resolution evidence...');
-      await uploadEvidenceApi(
-        { ticket_id: ticket.id, evidence_type: 'AFTER', source_type: sourceType, file: evidenceFile },
-        token
-      );
-
-      setVerifyStatusText('2/3. Starting AI verification session...');
+      setVerifyStatusText('1/2. Starting verification session...');
       const session = await startVerificationApi(ticket.id, token);
 
-      setVerifyStatusText('3/3. Running verification engine...');
+      setVerifyStatusText('2/2. Running AI forensic verification...');
       const res = await submitVerificationApi(
         {
           session_id: session.id,
@@ -549,24 +547,51 @@ export const WorkerTaskDetailPage: React.FC = () => {
                           : `${(verifyResult.integrity_score ?? 100).toFixed(1)} / 100`}
                       </span>
                     </div>
-                    <div className="flex justify-between items-center bg-white p-2.5 rounded border border-slate-100">
-                      <span className="font-semibold text-slate-700">Location:</span>
-                      <span className={`font-bold ${
-                        ['GPS_PASS', 'PASS'].includes(verifyResult.detailed_result.location?.status)
-                          ? 'text-emerald-700'
-                          : ['GPS_BORDERLINE', 'BORDERLINE', 'GPS_UNAVAILABLE', 'UNAVAILABLE', 'UNUSABLE'].includes(verifyResult.detailed_result.location?.status)
-                            ? 'text-amber-700'
-                            : 'text-rose-700'
-                      }`}>
-                        {['GPS_PASS', 'PASS'].includes(verifyResult.detailed_result.location?.status)
-                          ? '✓ PASS'
-                          : ['GPS_BORDERLINE', 'BORDERLINE'].includes(verifyResult.detailed_result.location?.status)
-                            ? '⚠ BORDERLINE'
-                            : ['GPS_UNAVAILABLE', 'UNAVAILABLE', 'UNUSABLE'].includes(verifyResult.detailed_result.location?.status)
-                              ? '⚠ APPROXIMATE'
-                              : '✕ FAIL'}
-                        {verifyResult.detailed_result.location?.accuracy_meters ? ` (Accuracy: ±${verifyResult.detailed_result.location.accuracy_meters}m)` : ''}
-                      </span>
+                    <div className="bg-white p-3 rounded-xl border border-slate-100 space-y-1.5">
+                      <div className="flex justify-between items-center">
+                        <span className="font-semibold text-slate-700">Location Verification:</span>
+                        <span className={`font-bold ${
+                          ['GPS_PASS', 'PASS'].includes(verifyResult.detailed_result.location?.status)
+                            ? 'text-emerald-700'
+                            : ['GPS_BORDERLINE', 'BORDERLINE', 'GPS_UNAVAILABLE', 'UNAVAILABLE', 'UNUSABLE'].includes(verifyResult.detailed_result.location?.status)
+                              ? 'text-amber-700'
+                              : 'text-rose-700'
+                        }`}>
+                          {['GPS_PASS', 'PASS'].includes(verifyResult.detailed_result.location?.status)
+                            ? '✓ PASS'
+                            : ['GPS_BORDERLINE', 'BORDERLINE'].includes(verifyResult.detailed_result.location?.status)
+                              ? '⚠ BORDERLINE'
+                              : ['GPS_UNAVAILABLE', 'UNAVAILABLE', 'UNUSABLE'].includes(verifyResult.detailed_result.location?.status)
+                                ? '⚠ APPROXIMATE'
+                                : '✕ FAIL'}
+                        </span>
+                      </div>
+                      <div className="grid grid-cols-3 gap-2 pt-1 border-t border-slate-100 text-[11px] text-slate-600">
+                        <div>
+                          <span className="text-slate-400 block text-[10px]">Distance</span>
+                          <span className="font-bold text-slate-800">
+                            {verifyResult.detailed_result.location?.distance_meters != null
+                              ? `${verifyResult.detailed_result.location.distance_meters} m`
+                              : 'N/A'}
+                          </span>
+                        </div>
+                        <div>
+                          <span className="text-slate-400 block text-[10px]">Device Accuracy</span>
+                          <span className="font-bold text-slate-800">
+                            {verifyResult.detailed_result.location?.accuracy_meters != null
+                              ? `±${verifyResult.detailed_result.location.accuracy_meters} m`
+                              : '±15 m'}
+                          </span>
+                        </div>
+                        <div>
+                          <span className="text-slate-400 block text-[10px]">Tolerance</span>
+                          <span className="font-bold text-slate-800">
+                            {verifyResult.detailed_result.location?.tolerance_meters != null
+                              ? `±${verifyResult.detailed_result.location.tolerance_meters} m`
+                              : '±200 m'}
+                          </span>
+                        </div>
+                      </div>
                     </div>
                     <div className="flex justify-between items-center bg-white p-2.5 rounded border border-slate-100">
                       <span className="font-semibold text-slate-700">Scene Match:</span>
