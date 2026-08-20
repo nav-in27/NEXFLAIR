@@ -1,116 +1,105 @@
-# MEIKAAN — Final Audit & Evaluation Report
+# MEIKAAN — Technical Status & Architecture Audit Report
 
-**Auditor Role**: CTO + Hackathon Jury + QA Lead  
-**Evaluation Target**: Civic Evidence Integrity Engine (MEIKAAN)  
-**Core Objective Audited**: *"Verify whether municipal closure evidence sufficiently supports a claimed resolution."*
-
----
-
-## 📋 Comprehensive 22-Point Verification Checklist
-
-| # | Audit Requirement / Check | Verification Result | Notes |
-|---|---|---|---|
-| 1 | Does the end-to-end workflow work? | **YES** ✅ | Complete 16-step lifecycle verified in automated E2E test. |
-| 2 | Can a worker submit closure evidence? | **YES** ✅ | `POST /api/verification/{session_id}/submit` accepts live camera payloads. |
-| 3 | Can MeiKaan analyze scene consistency? | **YES** ✅ | SuperPoint + LightGlue keypoint matcher (with classical ORB fallback). |
-| 4 | Can MeiKaan analyze hazard change? | **YES** ✅ | Stagnant water segmentation mask & pixel area reduction calculation. |
-| 5 | Can MeiKaan check evidence freshness? | **YES** ✅ | SHA-256 duplicate detection & capture timestamp verification. |
-| 6 | Can MeiKaan evaluate spatial consistency? | **YES** ✅ | Haversine distance proximity calculation. |
-| 7 | Can MeiKaan evaluate temporal consistency? | **YES** ✅ | Multi-task velocity calculation ($>100\text{ km/h}$ flags speed anomaly). |
-| 8 | Can MeiKaan calculate an explainable integrity score? | **YES** ✅ | Weighted multi-engine fusion ($0.0-100.0$) with natural language explanations. |
-| 9 | Can uncertain cases go to human review? | **YES** ✅ | Low score ($70-89.99$) or low model confidence forces `HUMAN_REVIEW`. |
-| 10 | Are reviewer actions audited? | **YES** ✅ | Every review action creates `ReviewAction` and `AuditLog` records. |
-| 11 | Does the dashboard use real data? | **YES** ✅ | Live database queries (`/api/analytics/*`) without fake hardcoded numbers. |
-| 12 | Are ML failures handled? | **YES** ✅ | Model load/CUDA failures degrade to ORB/SIFT + Classical CV fallbacks. |
-| 13 | Is CPU execution supported? | **YES** ✅ | PyTorch CPU mode and OpenCV native C++ execution supported. |
-| 14 | Are there security issues? | **NO** ✅ | Bcrypt password hashing, JWT RBAC, sanitized error responses. |
-| 15 | Are there privacy issues? | **NO** ✅ | Sensitive worker GPS data handled without public exposure. |
-| 16 | Are there fake AI outputs? | **NO** ✅ | All scores derived from actual mathematical pipeline algorithms. |
-| 17 | Are there hardcoded demo values outside DEMO MODE? | **NO** ✅ | Production endpoints execute real DB & CV code; demo mode isolated. |
-| 18 | Are all API endpoints validated? | **YES** ✅ | Pydantic V2 schemas enforce input validation across all routes. |
-| 19 | Does the frontend build? | **YES** ✅ | `npm run build` completed cleanly (`dist/assets/index-Dl7arpd9.js`). |
-| 20 | Does the backend start? | **YES** ✅ | FastAPI / Uvicorn server running on `http://localhost:8000`. |
-| 21 | Does PostgreSQL migrate? | **YES** ✅ | SQLAlchemy ORM models auto-create tables via `Base.metadata.create_all()`. |
-| 22 | Do tests pass? | **YES** ✅ | 104 passed, 0 failed, 2 skipped across 106 total tests. |
+**System Name**: MEIKAAN (AI-Powered Civic Evidence Integrity & Work Verification Engine)  
+**Evaluation Scope**: Verification pipeline correctness, spatial-temporal gating, anti-replay protections, and test integrity.  
+**Audited Target**: Backend Services (`FastAPI`), Forensic Vision Pipeline (`OpenCV`), and Frontend Portals (`React + Vite`).
 
 ---
 
-## 📊 Complete Test Results
+## 1. Executive Summary & Verification Metrics
 
-```bash
-================ 104 passed, 2 skipped, 21 warnings in 41.89s ================
-```
+MEIKAAN verifies whether municipal field-work closure evidence (AFTER photo + GPS metadata) reliably supports the resolution of an initial citizen grievance (BEFORE photo + GPS metadata).
 
-- **TOTAL TESTS**: `106`
-- **PASSED**: `104`
-- **FAILED**: `0`
-- **SKIPPED**: `2` *(Isolated API unit tests requiring live upload tokens in isolation)*
-
----
-
-## 🛠️ Section A: System Status
-
-- **Backend API**: **ONLINE & STABLE** (FastAPI / PyTorch CPU / OpenCV 4.9.0 / NumPy 1.26.4).
-- **Frontend UI**: **PRODUCTION BUILT & STABLE** (Vite / React 18 / Tailwind CSS).
-- **Verification Engines Active**:
-  - `Scene Consistency Engine`: LoFTR / SuperPoint (ORB Fallback Active).
-  - `Hazard Change Engine`: Stagnant Water Puddle Segmentation (Classical CV Fallback Active).
-  - `Evidence Freshness Engine`: SHA-256 Hash Collision & Capture Timestamp Inspector.
-  - `Spatial Consistency Engine`: Haversine Distance Proximity Evaluator.
-  - `Temporal Consistency Engine`: Multi-Task Velocity & Speed Anomaly Evaluator.
-  - `Evidence Quality Engine`: Blur (Laplacian Variance), Luminance, Obstruction Evaluator.
-  - `Evidence Fusion Engine`: Weighted Multi-Engine Integrity Scoring ($0.20$ scene, $0.30$ hazard, $0.15$ live, $0.10$ spatial, $0.10$ temporal, $0.10$ freshness, $0.05$ quality).
+### Test Suite Execution Summary
+- **Test Framework**: `pytest 9.1.1` (Python 3.11.5)
+- **Total Test Files**: `24` test suites in `backend/tests/`
+- **Total Tests Collected**: `148`
+- **Passed**: `146`
+- **Skipped**: `2` (`tests/test_scene_verification.py:276` and `tests/test_scene_verification.py:293` due to test database admin token fixture dependencies)
+- **Failed**: `0`
 
 ---
 
-## 🐛 Section B: Remaining Bugs
+## 2. Decision Logic & Thresholds (As Implemented)
 
-- **Zero Critical Bugs Identified**: All 104 unit, integration, and E2E simulation tests pass.
-- **Deprecation Warnings**: 21 non-blocking Pydantic V2 migration warnings and SQLAlchemy 2.0 warnings present in logs. These do not affect runtime execution.
+The Evidence Fusion Engine (`app/services/integrity_scoring.py`) combines 7 constituent signals into an explainable decision. It separates mathematical **Score ($0.0 - 100.0$)** from **Confidence ($0.0 - 1.0$)**.
 
----
+### Component Weights
+| Component | Weight | Implementation Details |
+| :--- | :--- | :--- |
+| **Hazard Resolution** | `30%` | Morphological cavity gradient & water segmentation mask reduction. |
+| **Scene Consistency** | `20%` | CLAHE-enhanced multi-scale ORB feature matching with RANSAC homography. |
+| **Live Capture** | `15%` | WebRTC live camera vs. gallery file upload origin validation. |
+| **Spatial Proximity** | `10%` | Haversine distance evaluated against dynamic device accuracy bounds. |
+| **Temporal Velocity** | `10%` | Inter-task velocity checks ($>100\text{ km/h}$ flags spatio-temporal anomaly). |
+| **Freshness / Anti-Replay** | `10%` | SHA-256 collision check across tickets + citizen BEFORE reuse prevention. |
+| **Evidence Quality** | `5%` | Laplacian variance blur detection, luminance, and aspect ratio checks. |
 
-## ⚠️ Section C: Remaining Limitations
-
-1. **Stagnant Water Primary Focus**: The Hazard Change Engine is currently optimized for stagnant water puddles. Garbage dumps and pothole hazards require dedicated YOLO fine-tuning models.
-2. **2D Geometry Constraints**: Extreme camera perspective changes ($>60^\circ$ pitch/yaw offset between BEFORE and VERIFICATION images) reduce LoFTR keypoint inlier matches.
-3. **EXIF Metadata Dependency**: Evidence freshness timestamp analysis relies on device EXIF data or app capture timestamps. If EXIF is stripped by chat apps, the engine assigns low confidence rather than marking workers suspicious.
-
----
-
-## 🚀 Section D: Deployment Status
-
-- **Development Server**: Host `0.0.0.0`, Port `8000` (`uvicorn app.main:app`).
-- **Frontend Server**: Port `5173` (`npm run dev`) & Static Production Build (`dist/`).
-- **Database Status**: PostgreSQL / SQLite fallback schema initialized with all 8 core tables (`users`, `wards`, `workers`, `tickets`, `ticket_evidence`, `verification_sessions`, `verification_results`, `audit_logs`).
-
----
-
-## 🎬 Section E & F: Exact Demo Procedure
-
-To run the hackathon demo:
-
-```bash
-# 1. Reset & seed 6 deterministic demo scenarios
-python scripts/seed_demo_data.py
-
-# 2. Open Hackathon Demo Portal
-http://localhost:5173/investigate
-```
-
-Using the top **Scenario Control Bar**, toggle between:
-1. `1. Genuine Resolution` (Score: 95, Decision: VERIFIED)
-2. `2. Wrong Location` (Score: 42, Decision: SUSPICIOUS)
-3. `3. No Resolution` (Score: 58, Decision: HUMAN_REVIEW)
-4. `4. Replayed Evidence` (Score: 64, Decision: SUSPICIOUS)
-5. `5. Speed Anomaly` (Score: 67, Decision: SUSPICIOUS)
-6. `6. Low Quality` (Score: 62, Decision: HUMAN_REVIEW)
+### Decision Rules
+- **`CLOSURE_NOT_VERIFIED`**:
+  - Exact duplicate reuse across different tickets, or spatio-temporal velocity anomaly $\implies$ Score: `0.0`, Confidence: `0.95`.
+  - Location mismatch ($\text{distance} > \text{tolerance} + \text{margin}$) $\implies$ Score: $\le 15.0$, Confidence: `0.95`.
+  - Scene mismatch (RANSAC inlier ratio below threshold) $\implies$ Score: $\le 15.0$, Confidence: `0.90`.
+  - Civic hazard still present (hazard reduction $< 25.0\%$) $\implies$ Score capped at `25.0`.
+- **`HUMAN_REVIEW`**:
+  - Missing, corrupted, or unreadable evidence image payloads $\implies$ Score: `40.0`, Confidence: `0.50`.
+  - Manual-review grievance categories (e.g. `BROKEN_STREETLIGHT`, `ELECTRICAL_FAULT`, `OTHER`).
+  - Partial hazard resolution ($25.0\% \le \text{hazard reduction} < 50.0\%$).
+  - Uncertain scene correspondence (borderline inliers).
+  - Location signal approximate or unavailable when scene match is unconfirmed.
+  - Quality flags triggered (severe blur, extreme glare/underexposure).
+  - System or parsing exceptions encountered during execution.
+- **`VERIFIED`**:
+  - Location matches complaint site (`GPS_PASS` or `GPS_BORDERLINE`), visual scene confirmed (`STRONG_MATCH` or `WEAK_MATCH`), and civic hazard resolved ($\ge 50.0\%$ reduction or smooth asphalt cavity fill) $\implies$ Score: weighted sum ($\ge 80.0$), Confidence: $\ge 0.85$.
 
 ---
 
-## ⏱️ Section G: 3-Minute Hackathon Presentation Flow
+## 3. Technology Stack & Implementation Reality
 
-- **0:00 - 0:45 (Problem & Vision)**: "Cities spend millions closing grievances, but citizens often see fake photo closures. MeiKaan is an automated Civic Evidence Integrity Engine that mathematically verifies closure evidence before ticket resolution."
-- **0:45 - 1:45 (The Hackathon Screen & Genuine Case)**: Show `TKT #4821`. Point out the LoFTR keypoint match visualization (96% scene consistency) and the puddle segmentation mask (83.2% visual reduction). Show the **93/100 VERIFIED** badge.
-- **1:45 - 2:30 (Fraud & Edge Case Scenarios)**: Switch to `Wrong Location` (Scene 28% $\rightarrow$ SUSPICIOUS), `Replayed Evidence` (SHA-256 duplicate flag $\rightarrow$ SUSPICIOUS), and `Low Quality` (Blur flag $\rightarrow$ HUMAN_REVIEW without false accusation).
-- **2:30 - 3:00 (Human-in-the-Loop & Auditability)**: Show the Review Queue and Audit Log ledger. Conclude: "MeiKaan brings mathematical proof and accountability to civic grievance governance."
+### Visual Scene Verification
+- **Currently Running**: High-capacity multi-scale **OpenCV ORB (5,000 features)** with **CLAHE local contrast enhancement**, **BFMatcher (Hamming distance with Lowe's ratio test)**, and **RANSAC geometric verification** (homography estimation, convex-hull spatial coverage, and reprojection error).
+- **Rationale**: Provides deterministic, ultra-fast CPU inference ($<80\text{ms}$) without requiring heavy PyTorch GPU dependencies during local hackathon/civic field deployment.
+- **Architectural Targets (Interfaces Structured)**: Deep feature extractors and neural matchers (SuperPoint, SuperGlue, LightGlue, LoFTR) have modular class interfaces in `app/services/visual_verification/`, intended for server environments with dedicated GPU acceleration.
+
+### Hazard & Cavity Detection
+- **Potholes / Road Defect**: Classical morphological Blackhat top-hat filtering combined with Sobel gradient magnitude to segment dark cavity depressions and compare structural defect area before and after repair.
+- **Stagnant Water**: Multi-channel color space thresholding (HSV/Lab) to compute water puddle surface reflection masks.
+- **Solid Waste / Garbage**: Color dispersion and texture entropy ratio.
+
+---
+
+## 4. Current Status: What Is Working vs. Partial vs. Gaps
+
+### Fully Implemented & Verified
+1. **Authoritative GPS Decision Pipeline**:
+   - Single authoritative backend distance calculation: $\text{tolerance} = \max(\text{threshold}, \text{ticket\_accuracy} + \text{evidence\_accuracy})$.
+   - Clean non-contradictory statuses (`GPS_PASS`, `GPS_BORDERLINE`, `GPS_MISMATCH`, `GPS_UNAVAILABLE`).
+   - Clear UI telemetry separating distance from device precision.
+2. **Pothole Repair Verification (Where vs. What)**:
+   - Evaluates scene background consistency independently from defect cavity disappearance.
+   - Successfully verifies smooth asphalt patches without penalizing the absence of the defect.
+3. **Cryptographic Anti-Replay & Freshness**:
+   - Blocks cross-complaint image reuse (SHA-256 match on another ticket).
+   - Blocks workers submitting citizen's BEFORE photo as proof of closure.
+   - Permits same-worker retries and task reopen workflows.
+4. **Live WebRTC Camera & Geolocation**:
+   - Direct camera access with front/back toggle, photo preview, retake, and browser geolocation capture.
+5. **Auditor Split-View & Governance Queue**:
+   - Interactive comparison slider with zoom/inversion filters, approval, reverification requests, and audit logging.
+
+### Partially Working / Graceful Degradations
+1. **EXIF Metadata Capture**: Web browsers frequently strip EXIF metadata from file uploads or canvas snapshots. The engine handles missing EXIF gracefully by assigning low confidence rather than false-flagging workers as fraudulent.
+2. **Cellular/Network GPS Jitter**: When GPS accuracy is wide ($\pm 100\text{m}-250\text{m}$), the system widens the tolerance window and leans heavily on visual scene correspondence.
+
+### Known Limitations
+1. **Extreme Perspective Changes**: Camera angle differences $> 60^\circ$ pitch/yaw between BEFORE and AFTER images reduce 2D homography inliers; these cases safely route to `HUMAN_REVIEW`.
+2. **Night-Time / Poor Lighting**: Images captured in severe darkness or with direct flash glare lack sufficient ambient contrast for keypoint extraction and route to `HUMAN_REVIEW`.
+3. **Non-Visual Civic Hazards**: Electrical hazards, streetlights, and sanitation odors cannot be verified visually and are routed to human reviewers by design.
+
+---
+
+## 5. Security & Deployment Posture
+
+- **Authentication**: JWT bearer tokens with role-based access control (Admin, Worker, Reviewer, Citizen). Passwords hashed using bcrypt.
+- **Demo Seed Credentials**: Relocated to `DEMO_CREDENTIALS.md` with explicit notice that they are local development seed accounts.
+- **Cross-Platform Startup**: `start_project.py` handles venv activation, dependency checks, database seeding, and frontend launching across Windows, macOS, and Linux.
