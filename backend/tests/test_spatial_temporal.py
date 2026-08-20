@@ -81,6 +81,20 @@ def test_haversine_known_distance():
 
 class TestTemporalConsistencyService:
 
+    def test_demo_gps_mode_deterministic_pass(self):
+        """When demo_mode=True, always returns deterministic PASS (0m, ±5m, ±300m)."""
+        svc = TemporalConsistencyService()
+        db = DummySpatialDB()
+        result = svc.analyze(db=db, session_id="sess-demo", demo_mode=True)
+
+        assert isinstance(result, SpatialTemporalResult)
+        assert result.location_status == "PASS"
+        assert result.spatial_score == 100.0
+        assert result.distance_meters == 0.0
+        assert result.accuracy_meters == 5.0
+        assert result.tolerance_meters == 300.0
+        assert result.explanation == "Location matches complaint site"
+
     def test_normal_route(self):
         """Proximity within 10 meters and normal travel -> spatial_score=100, anomaly=False."""
         svc = TemporalConsistencyService()
@@ -98,7 +112,7 @@ class TestTemporalConsistencyService:
         )
 
         db = DummySpatialDB(session=session, ticket=ticket, evidence=evidence, prior_evidences=[])
-        result = svc.analyze(db=db, session_id="sess-1")
+        result = svc.analyze(db=db, session_id="sess-1", demo_mode=False)
 
         assert isinstance(result, SpatialTemporalResult)
         assert result.spatial_score == 100.0
@@ -133,7 +147,7 @@ class TestTemporalConsistencyService:
         )
 
         db = DummySpatialDB(session=session, ticket=ticket, evidence=current_ev, prior_evidences=[prior_ev])
-        result = svc.analyze(db=db, session_id="sess-2")
+        result = svc.analyze(db=db, session_id="sess-2", demo_mode=False)
 
         assert result.is_spatio_temporal_anomaly is True
         assert result.observed_speed_kmh is not None and result.observed_speed_kmh > 120.0
@@ -156,7 +170,7 @@ class TestTemporalConsistencyService:
         )
 
         db = DummySpatialDB(session=session, ticket=ticket, evidence=evidence)
-        result = svc.analyze(db=db, session_id="sess-3")
+        result = svc.analyze(db=db, session_id="sess-3", demo_mode=False)
 
         assert result.distance_meters == 0.0
         assert result.spatial_score == 100.0
@@ -170,7 +184,7 @@ class TestTemporalConsistencyService:
         evidence = TicketEvidence(id="ev-4", ticket_id="t4", latitude=12.9716, longitude=77.5946)
 
         db = DummySpatialDB(session=session, ticket=ticket, evidence=evidence)
-        result = svc.analyze(db=db, session_id="sess-4")
+        result = svc.analyze(db=db, session_id="sess-4", demo_mode=False)
 
         assert result.low_confidence is True
         assert result.confidence < 0.50
@@ -194,7 +208,7 @@ class TestTemporalConsistencyService:
         )
 
         db = DummySpatialDB(session=session, ticket=ticket, evidence=evidence)
-        result = svc.analyze(db=db, session_id="sess-5")
+        result = svc.analyze(db=db, session_id="sess-5", demo_mode=False)
 
         assert result.is_spatio_temporal_anomaly is False
         assert result.spatial_score == 100.0

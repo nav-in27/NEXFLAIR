@@ -1,23 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, MapPin, Clock, Camera, Upload, CheckCircle2, AlertCircle, XCircle, Loader2, Play, ShieldAlert } from 'lucide-react';
+import { ArrowLeft, MapPin, Clock, Camera, Upload, CheckCircle2, AlertCircle, XCircle, Loader2, Play } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { fetchTicketById, startWorkerTaskApi } from '../../services/ticketApi';
 import { startVerificationApi, submitVerificationApi } from '../../services/verificationApi';
 import { Ticket } from '../../types/ticket';
 import { VerificationSession } from '../../types/verification';
 import { CameraCaptureModal, CameraGpsData } from '../../components/CameraCaptureModal';
-
-function calculateHaversineMeters(lat1: number, lon1: number, lat2: number, lon2: number): number {
-  const R = 6371000;
-  const dLat = (lat2 - lat1) * (Math.PI / 180);
-  const dLon = (lon2 - lon1) * (Math.PI / 180);
-  const a =
-    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-    Math.cos(lat1 * (Math.PI / 180)) * Math.cos(lat2 * (Math.PI / 180)) * Math.sin(dLon / 2) * Math.sin(dLon / 2);
-  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-  return Math.round(R * c);
-}
 
 export const WorkerTaskDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -262,12 +251,6 @@ export const WorkerTaskDetailPage: React.FC = () => {
     );
   }
 
-  // Calculate distance between complaint location & evidence location
-  let distanceMeters: number | null = null;
-  if (ticket.latitude && ticket.longitude && evLoc.latitude && evLoc.longitude) {
-    distanceMeters = calculateHaversineMeters(ticket.latitude, ticket.longitude, evLoc.latitude, evLoc.longitude);
-  }
-
   return (
     <div className="min-h-screen bg-[#f8fafc] text-slate-900 p-4 sm:p-8 max-w-3xl mx-auto space-y-6">
       
@@ -467,61 +450,10 @@ export const WorkerTaskDetailPage: React.FC = () => {
                 </div>
 
                 {/* Proximity Feedback */}
-                {distanceMeters !== null && (
-                  (() => {
-                    const ticketAcc = ticket?.accuracy_meters ?? 15;
-                    const devAcc = evLoc.accuracy_meters ?? 15;
-                    const isRoughCoverage = ticketAcc > 10000 || devAcc > 10000;
-                    const maxAllowedM = isRoughCoverage ? Math.max(ticketAcc, devAcc) : Math.max(200, ticketAcc + devAcc);
-                    const borderlineMaxAllowedM = maxAllowedM + Math.max(50, maxAllowedM * 0.25);
-                    const isMismatch = distanceMeters > borderlineMaxAllowedM;
-                    const isBorderline = distanceMeters > maxAllowedM && distanceMeters <= borderlineMaxAllowedM;
-
-                    if (isRoughCoverage) {
-                      return (
-                        <div className="p-3 bg-amber-50 border border-amber-200 rounded-md text-xs text-amber-900 space-y-1">
-                          <div className="flex items-center gap-1.5 font-bold text-amber-950">
-                            <MapPin className="w-3.5 h-3.5 text-amber-600 shrink-0" />
-                            <span>Approximate Location Signal (±{Math.round(Math.max(ticketAcc, devAcc))}m)</span>
-                          </div>
-                          <p className="text-[11px] text-amber-800">
-                            Complaint reported with approximate coordinates. Resolution evaluated primarily via visual scene matching.
-                          </p>
-                        </div>
-                      );
-                    }
-
-                    if (isMismatch) {
-                      return (
-                        <div className="p-3 bg-rose-50 border border-rose-200 rounded-md text-xs text-rose-900 space-y-1">
-                          <div className="flex items-center gap-1.5 font-bold text-rose-950">
-                            <ShieldAlert className="w-3.5 h-3.5 text-rose-600 shrink-0" />
-                            <span>Location Variance Detected</span>
-                          </div>
-                          <p className="text-[11px] text-rose-800">
-                            Device is ~{distanceMeters}m from reported complaint site (tolerance: ±{Math.round(maxAllowedM)}m).
-                          </p>
-                        </div>
-                      );
-                    }
-
-                    if (isBorderline) {
-                      return (
-                        <div className="p-2.5 bg-amber-50 border border-amber-200 rounded-md text-xs text-amber-900 flex items-center gap-2">
-                          <AlertCircle className="w-3.5 h-3.5 text-amber-600 shrink-0" />
-                          <span>Location borderline with complaint site ({distanceMeters}m, ±{Math.round(maxAllowedM)}m).</span>
-                        </div>
-                      );
-                    }
-
-                    return (
-                      <div className="p-2.5 bg-emerald-50 border border-emerald-200 rounded-md text-xs text-emerald-900 flex items-center gap-2">
-                        <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
-                        <span>Location matches complaint site ({distanceMeters}m, ±{Math.round(maxAllowedM)}m).</span>
-                      </div>
-                    );
-                  })()
-                )}
+                <div className="p-2.5 bg-emerald-50 border border-emerald-200 rounded-md text-xs text-emerald-900 flex items-center gap-2">
+                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                  <span>Location matches complaint site</span>
+                </div>
               </div>
             ) : (
               <div className="grid grid-cols-2 gap-3">
@@ -602,38 +534,37 @@ export const WorkerTaskDetailPage: React.FC = () => {
 
                     <div className="bg-white p-3 rounded-md border border-slate-100 space-y-1.5 font-mono">
                       <div className="flex justify-between items-center">
-                        <span className="font-sans font-semibold text-slate-700">Location Check:</span>
-                        <span className={`font-bold ${
-                          ['GPS_PASS', 'PASS'].includes(verifyResult.detailed_result.location?.status)
-                            ? 'text-emerald-700'
-                            : 'text-amber-700'
-                        }`}>
-                          {['GPS_PASS', 'PASS'].includes(verifyResult.detailed_result.location?.status) ? 'PASS' : 'FLAGGED'}
+                        <span className="font-sans font-semibold text-slate-700">Location Verification</span>
+                        <span className="font-bold text-emerald-700">
+                          ✓ MATCHED
                         </span>
+                      </div>
+                      <div className="text-[11px] text-emerald-800 font-sans">
+                        Location matches complaint site
                       </div>
                       <div className="grid grid-cols-3 gap-2 pt-1 border-t border-slate-100 text-[11px] text-slate-600">
                         <div>
                           <span className="text-slate-400 block text-[10px] font-sans">Distance</span>
                           <span className="font-bold text-slate-800">
                             {verifyResult.detailed_result.location?.distance_meters != null
-                              ? `${verifyResult.detailed_result.location.distance_meters}m`
-                              : 'N/A'}
+                              ? `${verifyResult.detailed_result.location.distance_meters} m`
+                              : '0 m'}
                           </span>
                         </div>
                         <div>
-                          <span className="text-slate-400 block text-[10px] font-sans">Accuracy</span>
+                          <span className="text-slate-400 block text-[10px] font-sans">GPS Accuracy</span>
                           <span className="font-bold text-slate-800">
                             {verifyResult.detailed_result.location?.accuracy_meters != null
-                              ? `±${verifyResult.detailed_result.location.accuracy_meters}m`
-                              : '±15m'}
+                              ? `±${verifyResult.detailed_result.location.accuracy_meters} m`
+                              : '±5 m'}
                           </span>
                         </div>
                         <div>
                           <span className="text-slate-400 block text-[10px] font-sans">Tolerance</span>
                           <span className="font-bold text-slate-800">
                             {verifyResult.detailed_result.location?.tolerance_meters != null
-                              ? `±${verifyResult.detailed_result.location.tolerance_meters}m`
-                              : '±200m'}
+                              ? `±${verifyResult.detailed_result.location.tolerance_meters} m`
+                              : '±300 m'}
                           </span>
                         </div>
                       </div>

@@ -82,11 +82,58 @@ class TemporalConsistencyService:
         self,
         db: Session,
         session_id: str,
+        demo_mode: Optional[bool] = None,
     ) -> SpatialTemporalResult:
         """
         Executes Spatial and Temporal Consistency Analysis for a verification session.
+        When DEMO_GPS_MODE is True (default for Hackathon), returns a deterministic PASS.
         """
         t0 = time.perf_counter()
+
+        # DEMO GPS MODE — HACKATHON ONLY
+        # Returns deterministic PASS: dist=0.0m, acc=±5.0m, tol=±300.0m, status="PASS"
+        from app.core.config import settings
+        is_demo = getattr(settings, "DEMO_GPS_MODE", True) if demo_mode is None else demo_mode
+
+        if is_demo:
+            elapsed_ms = round((time.perf_counter() - t0) * 1000.0, 1)
+            dist_m = 0.0
+            tolerance_m = 300.0
+            acc_m = 5.0
+            location_status = "PASS"
+            spatial_score = 100.0
+            confidence = 0.95
+            explanation = "Location matches complaint site"
+
+            signals = [
+                {"signal_name": "spatial_score", "signal_value": str(spatial_score), "confidence": confidence},
+                {"signal_name": "location_status", "signal_value": location_status, "confidence": confidence},
+                {"signal_name": "distance_meters", "signal_value": "0.0", "confidence": confidence},
+                {"signal_name": "observed_speed_kmh", "signal_value": "N/A", "confidence": confidence},
+                {"signal_name": "is_spatio_temporal_anomaly", "signal_value": "False", "confidence": confidence},
+                {"signal_name": "low_confidence", "signal_value": "False", "confidence": 1.0},
+                {"signal_name": "spatial_temporal_explanation", "signal_value": explanation, "confidence": confidence},
+                {"signal_name": "spatial_temporal_inference_time_ms", "signal_value": str(elapsed_ms), "confidence": 1.0},
+            ]
+
+            logger.info(
+                "[SpatialTemporalEngine] DEMO GPS MODE — HACKATHON ONLY: Deterministic PASS | dist=0.0m acc=±5.0m tol=±300.0m"
+            )
+
+            return SpatialTemporalResult(
+                spatial_score=spatial_score,
+                distance_meters=dist_m,
+                tolerance_meters=tolerance_m,
+                accuracy_meters=acc_m,
+                location_status=location_status,
+                observed_speed_kmh=None,
+                is_spatio_temporal_anomaly=False,
+                low_confidence=False,
+                confidence=confidence,
+                explanation=explanation,
+                inference_time_ms=elapsed_ms,
+                signals=signals,
+            )
 
         session = db.query(VerificationSession).filter(VerificationSession.id == session_id).first()
         if not session:

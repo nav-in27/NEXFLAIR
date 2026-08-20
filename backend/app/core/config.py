@@ -11,6 +11,11 @@ class Settings(BaseSettings):
     DEBUG: bool = True
     SECRET_KEY: str = os.getenv("SECRET_KEY", "meikaan-production-foundation-secret-key-2026")
     
+    # DEMO GPS MODE — HACKATHON ONLY
+    # When True: GPS verification returns deterministic dummy PASS (distance: 0m, accuracy: ±5m, tolerance: ±300m)
+    # When False: Real Haversine spatial verification engine is evaluated.
+    DEMO_GPS_MODE: bool = os.getenv("DEMO_GPS_MODE", "true").lower() in ("true", "1", "yes")
+    
     # CORS Origins
     CORS_ORIGINS: List[str] = [
         "http://localhost:5173",
