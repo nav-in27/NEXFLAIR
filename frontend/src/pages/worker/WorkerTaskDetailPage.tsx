@@ -195,6 +195,7 @@ export const WorkerTaskDetailPage: React.FC = () => {
     if (!ticket || !token || !evidenceFile) return;
     setIsVerifying(true);
     setError('');
+    setVerifyResult(null);
 
     try {
       setVerifyStatusText('1/2. Starting verification session...');

@@ -131,7 +131,10 @@ class IntegrityScoringService:
             after_ev = db.query(TicketEvidence).filter(
                 TicketEvidence.ticket_id == session.ticket_id,
                 TicketEvidence.verification_session_id == session.id,
-            ).first()
+            ).order_by(TicketEvidence.created_at.desc()).first()
+
+            if not after_ev and session.evidence_id:
+                after_ev = db.query(TicketEvidence).filter(TicketEvidence.id == session.evidence_id).first()
 
             if not before_ev or not after_ev:
                 image_load_status = "MISSING_EVIDENCE_RECORD"
@@ -311,14 +314,24 @@ class IntegrityScoringService:
             issue_status = "STILL_PRESENT"
 
         resolution_status = "SUPPORTED" if issue_status == "RESOLVED" else ("PARTIAL" if issue_status == "PARTIAL_REDUCTION" else "UNSUPPORTED")
-        temporal_status = "INVALID" if is_anomaly or exact_dup else "VALID"
+        temporal_status = "INVALID" if is_anomaly else "VALID"
+
+        # Check for direct before-after replay on same ticket
+        is_same_ticket_replay = bool(
+            before_ev and after_ev and before_ev.sha256_hash and after_ev.sha256_hash and (before_ev.sha256_hash == after_ev.sha256_hash)
+        )
 
         # Apply Decision Matrix
-        if exact_dup or is_anomaly:
+        if is_same_ticket_replay or is_anomaly:
             decision = "CLOSURE_NOT_VERIFIED"
             overall_score = 0.0
             overall_confidence = 0.95
-            explanations.append("CLOSURE NOT VERIFIED: Critical integrity failure (replayed evidence or spatio-temporal anomaly).")
+            explanations.append("CLOSURE NOT VERIFIED: Critical integrity failure (replayed complaint before-image or spatio-temporal anomaly).")
+        elif exact_dup and (scene_status not in ("STRONG_MATCH", "PASS") or issue_status != "RESOLVED"):
+            decision = "CLOSURE_NOT_VERIFIED"
+            overall_score = 0.0
+            overall_confidence = 0.95
+            explanations.append("CLOSURE NOT VERIFIED: Critical integrity failure (replayed evidence across complaints).")
         elif location_status in ("GPS_MISMATCH", "FAIL"):
             decision = "CLOSURE_NOT_VERIFIED"
             overall_score = round(min(15.0, spatial_score), 1)

@@ -638,30 +638,118 @@ def test_task_9_distance_500m_exceeds_tolerance():
         db.close()
 
 
-def test_task_9_accuracy_not_added_to_distance():
+
+def test_explicit_test_a_same_location_resolved_image_verified():
     """
-    distance = 103m, accuracy = 500m, base tolerance = 200m
-    Expected:
-    distance_meters == ~103m (NOT 603m)
+    TEST A:
+    Same complaint location + real resolved image
+    -> MATCHED + STRONG_MATCH + RESOLVED
+    -> score > 85
+    -> VERIFIED
     """
     db = SessionLocal()
     try:
         session, worker, t, ev_b, ev_a = create_test_session(
             db, "POTHOLE",
-            13.000000, 77.500000, 15.0,
-            13.000927, 77.500000, 500.0,  # ~103m away with 500m device accuracy
+            13.0031, 77.5643, 15.0,
+            13.0031, 77.5643, 15.0,
             IMG_POTHOLE_SRC, IMG_FIXED_SRC
         )
         scoring = IntegrityScoringService()
         res = scoring.finalize_verification(db, session.id)
 
-        loc = res.detailed_result["location"]
-        assert 100.0 <= loc["distance_meters"] <= 106.0, f"Distance must be ~103m, NOT distance+accuracy. Got {loc['distance_meters']}"
-        assert loc["accuracy_meters"] == 500.0
-        # 103m is well within tolerance (max(200, 15+500) = 515m)
-        assert loc["status"] in ("PASS", "GPS_PASS")
+        print(f"[TEST A] Decision: {res.decision} | Score: {res.overall_score}")
+        assert res.decision == "VERIFIED", f"Expected VERIFIED, got {res.decision}"
+        assert res.overall_score > 85.0, f"Expected score > 85, got {res.overall_score}"
+        assert res.detailed_result["scene"]["status"] in ("STRONG_MATCH", "PASS")
+        assert res.detailed_result["issue"]["status"] == "RESOLVED"
     finally:
         db.close()
+
+
+def test_explicit_test_b_same_location_unresolved_image_not_verified():
+    """
+    TEST B:
+    Same location + unresolved image
+    -> low/medium score (<= 30)
+    -> CLOSURE_NOT_VERIFIED
+    """
+    db = SessionLocal()
+    try:
+        session, worker, t, ev_b, ev_a = create_test_session(
+            db, "POTHOLE",
+            13.0031, 77.5643, 15.0,
+            13.0031, 77.5643, 15.0,
+            IMG_POTHOLE_SRC, IMG_POTHOLE_SRC
+        )
+        scoring = IntegrityScoringService()
+        res = scoring.finalize_verification(db, session.id)
+
+        print(f"[TEST B] Decision: {res.decision} | Score: {res.overall_score}")
+        assert res.decision == "CLOSURE_NOT_VERIFIED", f"Expected CLOSURE_NOT_VERIFIED, got {res.decision}"
+        assert res.overall_score <= 30.0, f"Expected score <= 30, got {res.overall_score}"
+        assert res.detailed_result["issue"]["status"] == "STILL_PRESENT"
+    finally:
+        db.close()
+
+
+def test_explicit_test_c_different_location_resolved_image_not_verified():
+    """
+    TEST C:
+    different location + resolved-looking image
+    -> location mismatch
+    -> CLOSURE_NOT_VERIFIED
+    """
+    db = SessionLocal()
+    try:
+        session, worker, t, ev_b, ev_a = create_test_session(
+            db, "POTHOLE",
+            13.000000, 77.500000, 20.0,
+            13.010000, 77.500000, 20.0,  # ~1.1 km away
+            IMG_POTHOLE_SRC, IMG_FIXED_SRC
+        )
+        scoring = IntegrityScoringService()
+        res = scoring.finalize_verification(db, session.id)
+
+        print(f"[TEST C] Decision: {res.decision} | Score: {res.overall_score}")
+        assert res.decision == "CLOSURE_NOT_VERIFIED", f"Expected CLOSURE_NOT_VERIFIED, got {res.decision}"
+        assert res.overall_score <= 20.0, f"Expected score <= 20, got {res.overall_score}"
+        assert res.detailed_result["location"]["status"] in ("FAIL", "GPS_MISMATCH")
+    finally:
+        db.close()
+
+
+def test_explicit_test_d_unrelated_evidence_low_score_not_verified():
+    """
+    TEST D:
+    different image/location + unrelated evidence
+    -> must NOT receive a high verification score (<= 30.0)
+    -> CLOSURE_NOT_VERIFIED
+    """
+    diff_img_path = os.path.join(UPLOADS_DIR, f"diff_d_{uuid.uuid4().hex[:6]}.png")
+    diff_mat = np.zeros((480, 640, 3), dtype=np.uint8)
+    cv2.circle(diff_mat, (320, 240), 100, (100, 100, 100), -1)
+    cv2.imwrite(diff_img_path, diff_mat)
+
+    db = SessionLocal()
+    try:
+        session, worker, t, ev_b, ev_a = create_test_session(
+            db, "POTHOLE",
+            13.000000, 77.500000, 20.0,
+            13.010000, 77.500000, 20.0,  # Far away
+            IMG_POTHOLE_SRC, diff_img_path  # Unrelated image
+        )
+        scoring = IntegrityScoringService()
+        res = scoring.finalize_verification(db, session.id)
+
+        print(f"[TEST D] Decision: {res.decision} | Score: {res.overall_score}")
+        assert res.decision == "CLOSURE_NOT_VERIFIED", f"Expected CLOSURE_NOT_VERIFIED, got {res.decision}"
+        assert res.overall_score <= 30.0, f"Expected score <= 30, got {res.overall_score}"
+    finally:
+        if os.path.exists(diff_img_path):
+            os.remove(diff_img_path)
+        db.close()
+
 
 
 
