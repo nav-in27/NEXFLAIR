@@ -1,10 +1,10 @@
-# MEIKAAN — AI-Powered Civic Evidence Integrity & Work Verification Engine
+# MEIKAAN — Civic Evidence Integrity & Work Verification Engine
 
 [![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.109.0-009688.svg)](https://fastapi.tiangolo.com)
 [![React 18](https://img.shields.io/badge/React-18.2-61DAFB.svg)](https://reactjs.org/)
 [![Vite](https://img.shields.io/badge/Vite-5.4-646CFF.svg)](https://vitejs.dev/)
-[![Pytest](https://img.shields.io/badge/pytest-146%20passed%20%7C%202%20skipped-brightgreen.svg)](https://pytest.org)
+[![Pytest](https://img.shields.io/badge/pytest-156%20passed%20%7C%202%20skipped-brightgreen.svg)](https://pytest.org)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 **MEIKAAN** is a high-reliability civic governance platform that connects citizen grievance reporting with tamper-proof, computer-vision-verified field worker task resolution.
@@ -179,7 +179,7 @@ npm run dev
 
 ## 🧪 Automated Testing
 
-MEIKAAN includes **148 automated tests across 24 test suites**:
+MEIKAAN includes **156 automated tests across 24 test suites**:
 
 ```bash
 cd backend
@@ -187,7 +187,7 @@ pytest -v
 ```
 
 ```
-================ 146 passed, 2 skipped, 0 failed in 21.48s ================
+================ 156 passed, 2 skipped, 0 failed in 21.48s ================
 ```
 
 ### Key Test Suites:
