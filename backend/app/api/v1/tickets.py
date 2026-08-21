@@ -555,32 +555,49 @@ async def create_citizen_ticket(
     db.add(new_ticket)
     db.commit()
     db.refresh(new_ticket)
-    if payload.photo_base64:
+    if payload.photo_base64 and payload.photo_base64.strip():
         import base64
-        import hashlib
-        import os
+        import io
+        from PIL import Image
+        from app.services.storage import get_storage_provider
+        from app.services.evidence import compute_sha256_hash, compute_perceptual_hash
         try:
             b64_str = payload.photo_base64.split(",")[-1].strip()
             b64_str += "=" * ((4 - len(b64_str) % 4) % 4)
             image_data = base64.b64decode(b64_str)
-            sha256_hash = hashlib.sha256(image_data).hexdigest()
-            filename = f"citizen_before_{new_ticket.id[:8]}.jpg"
-            uploads_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "..", "uploads", "evidence"))
-            os.makedirs(uploads_dir, exist_ok=True)
-            filepath = os.path.join(uploads_dir, filename)
-            with open(filepath, "wb") as f:
-                f.write(image_data)
+            sha256_hash = compute_sha256_hash(image_data)
 
-            rel_path = f"/uploads/evidence/{filename}"
+            phash = None
+            width = None
+            height = None
+            try:
+                img_obj = Image.open(io.BytesIO(image_data))
+                width, height = img_obj.size
+                phash = compute_perceptual_hash(img_obj)
+            except Exception:
+                pass
+
+            filename = f"citizen_before_{new_ticket.id[:8]}.jpg"
+            storage = get_storage_provider()
+            rel_path, _ = storage.save_file(image_data, filename, "image/jpeg")
+
             evidence = TicketEvidence(
                 ticket_id=new_ticket.id,
                 evidence_type=EvidenceType.BEFORE.value,
-                source_type=SourceType.UPLOAD.value,
+                source_type=SourceType.LIVE_CAMERA.value if (payload.location_source == "device_gps" or payload.location_status == "GPS_CAPTURED") else SourceType.UPLOAD.value,
                 file_path=rel_path,
                 file_type="image/jpeg",
                 sha256_hash=sha256_hash,
+                perceptual_hash=phash,
+                width=width,
+                height=height,
+                file_size_bytes=len(image_data),
+                captured_at=payload.captured_at or now,
+                uploaded_at=now,
                 latitude=payload.latitude,
-                longitude=payload.longitude
+                longitude=payload.longitude,
+                accuracy_meters=payload.accuracy_meters,
+                location_source=payload.location_source or "device_gps"
             )
             db.add(evidence)
             db.commit()
@@ -723,35 +740,50 @@ async def dispute_citizen_resolution(
     ticket.updated_at = datetime.datetime.now(datetime.timezone.utc)
 
     evidence_id = None
-    if payload.evidence_base64:
+    if payload.evidence_base64 and payload.evidence_base64.strip():
         import base64
-        import hashlib
-        import os
+        import io
+        from PIL import Image
+        from app.services.storage import get_storage_provider
+        from app.services.evidence import compute_sha256_hash, compute_perceptual_hash
         try:
-            image_data = base64.b64decode(payload.evidence_base64.split(",")[-1])
-            sha256_hash = hashlib.sha256(image_data).hexdigest()
-            filename = f"dispute_evidence_{ticket.id[:8]}.jpg"
-            uploads_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "..", "uploads", "evidence"))
-            os.makedirs(uploads_dir, exist_ok=True)
-            filepath = os.path.join(uploads_dir, filename)
-            with open(filepath, "wb") as f:
-                f.write(image_data)
+            b64_str = payload.evidence_base64.split(",")[-1].strip()
+            b64_str += "=" * ((4 - len(b64_str) % 4) % 4)
+            image_data = base64.b64decode(b64_str)
+            sha256_hash = compute_sha256_hash(image_data)
 
-            rel_path = f"/uploads/evidence/{filename}"
+            phash = None
+            width = None
+            height = None
+            try:
+                img_obj = Image.open(io.BytesIO(image_data))
+                width, height = img_obj.size
+                phash = compute_perceptual_hash(img_obj)
+            except Exception:
+                pass
+
+            filename = f"dispute_evidence_{ticket.id[:8]}.jpg"
+            storage = get_storage_provider()
+            rel_path, _ = storage.save_file(image_data, filename, "image/jpeg")
+
             evidence = TicketEvidence(
                 ticket_id=ticket.id,
                 evidence_type=EvidenceType.BEFORE.value,
                 source_type=SourceType.UPLOAD.value,
                 file_path=rel_path,
                 file_type="image/jpeg",
-                sha256_hash=sha256_hash
+                sha256_hash=sha256_hash,
+                perceptual_hash=phash,
+                width=width,
+                height=height,
+                file_size_bytes=len(image_data)
             )
             db.add(evidence)
             db.commit()
             db.refresh(evidence)
             evidence_id = evidence.id
         except Exception as e:
-            print(f"Warning saving dispute evidence photo: {e}")
+            logger.warning(f"Warning saving dispute evidence photo: {e}")
 
     dispute = CitizenDispute(
         ticket_id=ticket.id,

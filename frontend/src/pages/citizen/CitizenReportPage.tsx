@@ -112,9 +112,14 @@ export const CitizenReportPage: React.FC = () => {
     }
   };
 
-  const handleCameraCapture = (_file: File, previewUrl: string, camGps?: CameraGpsData) => {
-    setPhotoPreview(previewUrl);
-    setPhotoSource('CAMERA');
+  const handleCameraCapture = (file: File, _previewUrl: string, camGps?: CameraGpsData) => {
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setPhotoPreview(reader.result as string);
+      setPhotoSource('CAMERA');
+    };
+    reader.readAsDataURL(file);
+
     if (camGps && camGps.status === 'GPS_CAPTURED' && camGps.latitude && camGps.longitude) {
       setGpsState({
         latitude: camGps.latitude,

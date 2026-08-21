@@ -57,10 +57,10 @@ export default function InvestigationModal({
 
   // Resolve before / after evidence items
   const beforeItem = evidenceData?.find((e: any) => e.evidence_type === 'BEFORE');
-  const afterItem = evidenceData?.find((e: any) => e.evidence_type === 'AFTER' || e.evidence_type === 'LIVE');
+  const afterItem = evidenceData?.find((e: any) => e.evidence_type === 'AFTER' || e.evidence_type === 'LIVE' || e.evidence_type === 'LIVE_VERIFICATION');
 
-  const beforeUrl = beforeItem ? `/uploads/${beforeItem.file_path.replace(/^.*[\\\/]/, '')}` : null;
-  const afterUrl = afterItem ? `/uploads/${afterItem.file_path.replace(/^.*[\\\/]/, '')}` : null;
+  const beforeUrl = beforeItem?.file_path ? (beforeItem.file_path.startsWith('http') || beforeItem.file_path.startsWith('/') ? beforeItem.file_path : `/${beforeItem.file_path}`) : null;
+  const afterUrl = afterItem?.file_path ? (afterItem.file_path.startsWith('http') || afterItem.file_path.startsWith('/') ? afterItem.file_path : `/${afterItem.file_path}`) : null;
 
   // Visualization URLs
   const sceneVizUrl = item.verification_session_id
