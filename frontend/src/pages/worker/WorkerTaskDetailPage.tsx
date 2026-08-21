@@ -401,222 +401,235 @@ export const WorkerTaskDetailPage: React.FC = () => {
 
       {/* Verification Evidence Modal */}
       {showVerifyModal && (
-        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4 z-50 animate-fade-in">
-          <div className="civic-card p-6 max-w-lg w-full shadow-2xl space-y-5">
-            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4 z-50 animate-fade-in overflow-y-auto">
+          <div className="civic-card max-w-lg w-full max-h-[90vh] shadow-2xl flex flex-col my-auto overflow-hidden">
+            {/* Modal Header */}
+            <div className="flex items-center justify-between border-b border-slate-100 p-4 sm:p-5 shrink-0 bg-white">
               <div>
                 <h3 className="text-sm font-bold text-slate-900">Verify Resolution at Site</h3>
                 <p className="text-xs text-slate-500">Capture repaired scene evidence at assigned coordinates.</p>
               </div>
-              <button onClick={() => setShowVerifyModal(false)} className="text-slate-400 hover:text-slate-700 text-xs font-semibold">
+              <button
+                onClick={() => setShowVerifyModal(false)}
+                className="text-slate-400 hover:text-slate-700 text-xs font-semibold p-1 transition-colors"
+                aria-label="Close"
+              >
                 ✕
               </button>
             </div>
 
-            {evidencePhoto ? (
-              <div className="space-y-3">
-                <div className="relative rounded-lg overflow-hidden border border-slate-200 h-48 bg-slate-100">
-                  <img src={evidencePhoto} alt="Resolution photo" className="w-full h-full object-cover" />
-                  <button
-                    onClick={() => {
-                      setEvidencePhoto('');
-                      setEvidenceFile(null);
-                    }}
-                    className="absolute top-2.5 right-2.5 px-2.5 py-1 bg-white/95 text-slate-900 text-xs font-semibold rounded border border-slate-200 shadow-xs hover:bg-white"
-                  >
-                    Retake
-                  </button>
-                </div>
+            {/* Scrollable Modal Content */}
+            <div className="p-4 sm:p-5 space-y-4 overflow-y-auto flex-1 overscroll-contain">
+              {evidencePhoto ? (
+                <div className="space-y-3">
+                  <div className="relative rounded-lg overflow-hidden border border-slate-200 h-44 sm:h-48 bg-slate-100">
+                    <img src={evidencePhoto} alt="Resolution photo" className="w-full h-full object-cover" />
+                    <button
+                      onClick={() => {
+                        setEvidencePhoto('');
+                        setEvidenceFile(null);
+                      }}
+                      className="absolute top-2.5 right-2.5 px-2.5 py-1 bg-white/95 text-slate-900 text-xs font-semibold rounded border border-slate-200 shadow-xs hover:bg-white transition-colors"
+                    >
+                      Retake
+                    </button>
+                  </div>
 
-                <div className="p-3 bg-slate-50 border border-slate-200 rounded-md text-xs space-y-1 font-mono">
-                  <div className="flex justify-between items-center text-slate-800">
-                    <span className="font-semibold font-sans">Capture Mode:</span>
-                    <span className="px-2 py-0.5 bg-slate-200 text-slate-800 rounded text-[10px]">
-                      {sourceType === 'LIVE_CAMERA' ? 'LIVE CAMERA' : 'IMAGE UPLOAD'}
+                  <div className="p-3 bg-slate-50 border border-slate-200 rounded-md text-xs space-y-1 font-mono">
+                    <div className="flex justify-between items-center text-slate-800">
+                      <span className="font-semibold font-sans">Capture Mode:</span>
+                      <span className="px-2 py-0.5 bg-slate-200 text-slate-800 rounded text-[10px]">
+                        {sourceType === 'LIVE_CAMERA' ? 'LIVE CAMERA' : 'IMAGE UPLOAD'}
+                      </span>
+                    </div>
+
+                    {evLoc.status === 'CAPTURED' ? (
+                      <div className="flex justify-between items-center text-slate-700 text-[11px] pt-1 border-t border-slate-200/60">
+                        <span className="font-sans">Device Telemetry:</span>
+                        <span className="font-bold text-slate-900">
+                          {evLoc.latitude?.toFixed(4)}°, {evLoc.longitude?.toFixed(4)}° (±{evLoc.accuracy_meters}m)
+                        </span>
+                      </div>
+                    ) : (
+                      <div className="text-[11px] text-amber-700 italic pt-1">
+                        Acquiring GPS telemetry...
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Proximity Feedback */}
+                  <div className="p-2.5 bg-emerald-50 border border-emerald-200 rounded-md text-xs text-emerald-900 flex items-center gap-2">
+                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                    <span>Location matches complaint site</span>
+                  </div>
+                </div>
+              ) : (
+                <div className="grid grid-cols-2 gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setShowCameraModal(true)}
+                    className="p-5 border border-dashed border-slate-300 hover:border-slate-400 bg-slate-50 hover:bg-slate-100 rounded-lg text-center cursor-pointer flex flex-col items-center justify-center transition-colors"
+                  >
+                    <div className="w-9 h-9 rounded-md bg-white border border-slate-200 text-slate-700 flex items-center justify-center mb-2">
+                      <Camera className="w-4 h-4" />
+                    </div>
+                    <span className="text-xs font-semibold text-slate-900 block">Take Photo</span>
+                    <span className="text-[10px] text-slate-500 mt-0.5 block font-mono">Live Camera</span>
+                  </button>
+
+                  <label className="p-5 border border-dashed border-slate-300 hover:border-slate-400 bg-slate-50 hover:bg-slate-100 rounded-lg text-center cursor-pointer flex flex-col items-center justify-center transition-colors">
+                    <div className="w-9 h-9 rounded-md bg-white border border-slate-200 text-slate-700 flex items-center justify-center mb-2">
+                      <Upload className="w-4 h-4" />
+                    </div>
+                    <span className="text-xs font-semibold text-slate-900 block">Upload File</span>
+                    <span className="text-[10px] text-slate-500 mt-0.5 block font-mono">From Gallery</span>
+                    <input
+                      type="file"
+                      accept="image/jpeg,image/png,image/webp"
+                      onChange={(e) => handlePhotoSelect(e, 'UPLOAD')}
+                      className="hidden"
+                    />
+                  </label>
+                </div>
+              )}
+
+              <CameraCaptureModal
+                isOpen={showCameraModal}
+                onClose={() => setShowCameraModal(false)}
+                onCapture={handleCameraCapture}
+                onFallbackUpload={() => {
+                  const inputEl = document.createElement('input');
+                  inputEl.type = 'file';
+                  inputEl.accept = 'image/jpeg,image/png,image/webp';
+                  inputEl.onchange = (ev: any) => handlePhotoSelect(ev, 'UPLOAD');
+                  inputEl.click();
+                }}
+                title="Worker Resolution Evidence Capture"
+              />
+
+              {verifyResult && (
+                <div className={`p-4 border rounded-md space-y-3 ${
+                  verifyResult.integrity_status === 'VERIFIED'
+                    ? 'bg-emerald-50 border-emerald-200'
+                    : verifyResult.integrity_status === 'HUMAN_REVIEW'
+                      ? 'bg-amber-50 border-amber-200'
+                      : 'bg-rose-50 border-rose-200'
+                }`}>
+                  <div className="flex flex-col items-center justify-center text-center pb-3 border-b border-slate-200/60">
+                    {verifyResult.integrity_status === 'VERIFIED' ? (
+                      <CheckCircle2 className="w-8 h-8 text-emerald-600 mx-auto" />
+                    ) : verifyResult.integrity_status === 'HUMAN_REVIEW' ? (
+                      <AlertCircle className="w-8 h-8 text-amber-600 mx-auto" />
+                    ) : (
+                      <XCircle className="w-8 h-8 text-rose-600 mx-auto" />
+                    )}
+                    
+                    <span className="text-xs font-mono font-semibold uppercase tracking-wider text-slate-600 mt-2">
+                      Decision: {verifyResult.integrity_status}
                     </span>
                   </div>
 
-                  {evLoc.status === 'CAPTURED' ? (
-                    <div className="flex justify-between items-center text-slate-700 text-[11px] pt-1 border-t border-slate-200/60">
-                      <span className="font-sans">Device Telemetry:</span>
-                      <span className="font-bold text-slate-900">
-                        {evLoc.latitude?.toFixed(4)}°, {evLoc.longitude?.toFixed(4)}° (±{evLoc.accuracy_meters}m)
-                      </span>
-                    </div>
-                  ) : (
-                    <div className="text-[11px] text-amber-700 italic pt-1">
-                      Acquiring GPS telemetry...
-                    </div>
-                  )}
-                </div>
-
-                {/* Proximity Feedback */}
-                <div className="p-2.5 bg-emerald-50 border border-emerald-200 rounded-md text-xs text-emerald-900 flex items-center gap-2">
-                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
-                  <span>Location matches complaint site</span>
-                </div>
-              </div>
-            ) : (
-              <div className="grid grid-cols-2 gap-3">
-                <button
-                  type="button"
-                  onClick={() => setShowCameraModal(true)}
-                  className="p-5 border border-dashed border-slate-300 hover:border-slate-400 bg-slate-50 hover:bg-slate-100 rounded-lg text-center cursor-pointer flex flex-col items-center justify-center transition-colors"
-                >
-                  <div className="w-9 h-9 rounded-md bg-white border border-slate-200 text-slate-700 flex items-center justify-center mb-2">
-                    <Camera className="w-4 h-4" />
-                  </div>
-                  <span className="text-xs font-semibold text-slate-900 block">Take Photo</span>
-                  <span className="text-[10px] text-slate-500 mt-0.5 block font-mono">Live Camera</span>
-                </button>
-
-                <label className="p-5 border border-dashed border-slate-300 hover:border-slate-400 bg-slate-50 hover:bg-slate-100 rounded-lg text-center cursor-pointer flex flex-col items-center justify-center transition-colors">
-                  <div className="w-9 h-9 rounded-md bg-white border border-slate-200 text-slate-700 flex items-center justify-center mb-2">
-                    <Upload className="w-4 h-4" />
-                  </div>
-                  <span className="text-xs font-semibold text-slate-900 block">Upload File</span>
-                  <span className="text-[10px] text-slate-500 mt-0.5 block font-mono">From Gallery</span>
-                  <input
-                    type="file"
-                    accept="image/jpeg,image/png,image/webp"
-                    onChange={(e) => handlePhotoSelect(e, 'UPLOAD')}
-                    className="hidden"
-                  />
-                </label>
-              </div>
-            )}
-
-            <CameraCaptureModal
-              isOpen={showCameraModal}
-              onClose={() => setShowCameraModal(false)}
-              onCapture={handleCameraCapture}
-              onFallbackUpload={() => {
-                const inputEl = document.createElement('input');
-                inputEl.type = 'file';
-                inputEl.accept = 'image/jpeg,image/png,image/webp';
-                inputEl.onchange = (ev: any) => handlePhotoSelect(ev, 'UPLOAD');
-                inputEl.click();
-              }}
-              title="Worker Resolution Evidence Capture"
-            />
-
-            {verifyResult ? (
-              <div className={`p-4 border rounded-md space-y-3 ${
-                verifyResult.integrity_status === 'VERIFIED'
-                  ? 'bg-emerald-50 border-emerald-200'
-                  : verifyResult.integrity_status === 'HUMAN_REVIEW'
-                    ? 'bg-amber-50 border-amber-200'
-                    : 'bg-rose-50 border-rose-200'
-              }`}>
-                <div className="flex flex-col items-center justify-center text-center pb-3 border-b border-slate-200/60">
-                  {verifyResult.integrity_status === 'VERIFIED' ? (
-                    <CheckCircle2 className="w-8 h-8 text-emerald-600 mx-auto" />
-                  ) : verifyResult.integrity_status === 'HUMAN_REVIEW' ? (
-                    <AlertCircle className="w-8 h-8 text-amber-600 mx-auto" />
-                  ) : (
-                    <XCircle className="w-8 h-8 text-rose-600 mx-auto" />
-                  )}
-                  
-                  <span className="text-xs font-mono font-semibold uppercase tracking-wider text-slate-600 mt-2">
-                    Decision: {verifyResult.integrity_status}
-                  </span>
-                </div>
-
-                {verifyResult.detailed_result && (
-                  <div className="space-y-2 text-xs">
-                    <div className="flex justify-between items-center bg-white p-2.5 rounded border border-slate-100">
-                      <span className="font-semibold text-slate-700">Integrity Score:</span>
-                      <span className="font-mono font-bold text-slate-900">
-                        {verifyResult.integrity_score != null
-                          ? `${verifyResult.integrity_score.toFixed(1)} / 100`
-                          : verifyResult.detailed_result?.integrity_score != null
-                            ? `${verifyResult.detailed_result.integrity_score.toFixed(1)} / 100`
-                            : verifyResult.detailed_result?.resolution?.score != null
-                              ? `${verifyResult.detailed_result.resolution.score.toFixed(1)} / 100`
-                              : '95.0 / 100'}
-                      </span>
-                    </div>
-
-                    <div className="bg-white p-3 rounded-md border border-slate-100 space-y-1.5 font-mono">
-                      <div className="flex justify-between items-center">
-                        <span className="font-sans font-semibold text-slate-700">Location Verification</span>
-                        <span className="font-bold text-emerald-700">
-                          ✓ MATCHED
+                  {verifyResult.detailed_result && (
+                    <div className="space-y-2 text-xs">
+                      <div className="flex justify-between items-center bg-white p-2.5 rounded border border-slate-100">
+                        <span className="font-semibold text-slate-700">Integrity Score:</span>
+                        <span className="font-mono font-bold text-slate-900">
+                          {verifyResult.integrity_score != null
+                            ? `${verifyResult.integrity_score.toFixed(1)} / 100`
+                            : verifyResult.detailed_result?.integrity_score != null
+                              ? `${verifyResult.detailed_result.integrity_score.toFixed(1)} / 100`
+                              : verifyResult.detailed_result?.resolution?.score != null
+                                ? `${verifyResult.detailed_result.resolution.score.toFixed(1)} / 100`
+                                : '95.0 / 100'}
                         </span>
                       </div>
-                      <div className="text-[11px] text-emerald-800 font-sans">
-                        Location matches complaint site
+
+                      <div className="bg-white p-3 rounded-md border border-slate-100 space-y-1.5 font-mono">
+                        <div className="flex justify-between items-center">
+                          <span className="font-sans font-semibold text-slate-700">Location Verification</span>
+                          <span className="font-bold text-emerald-700">
+                            ✓ MATCHED
+                          </span>
+                        </div>
+                        <div className="text-[11px] text-emerald-800 font-sans">
+                          Location matches complaint site
+                        </div>
+                        <div className="grid grid-cols-3 gap-2 pt-1 border-t border-slate-100 text-[11px] text-slate-600">
+                          <div>
+                            <span className="text-slate-400 block text-[10px] font-sans">Distance</span>
+                            <span className="font-bold text-slate-800">
+                              {verifyResult.detailed_result.location?.distance_meters != null
+                                ? `${verifyResult.detailed_result.location.distance_meters} m`
+                                : '0 m'}
+                            </span>
+                          </div>
+                          <div>
+                            <span className="text-slate-400 block text-[10px] font-sans">GPS Accuracy</span>
+                            <span className="font-bold text-slate-800">
+                              {verifyResult.detailed_result.location?.accuracy_meters != null
+                                ? `±${verifyResult.detailed_result.location.accuracy_meters} m`
+                                : '±5 m'}
+                            </span>
+                          </div>
+                          <div>
+                            <span className="text-slate-400 block text-[10px] font-sans">Tolerance</span>
+                            <span className="font-bold text-slate-800">
+                              {verifyResult.detailed_result.location?.tolerance_meters != null
+                                ? `±${verifyResult.detailed_result.location.tolerance_meters} m`
+                                : '±300 m'}
+                            </span>
+                          </div>
+                        </div>
                       </div>
-                      <div className="grid grid-cols-3 gap-2 pt-1 border-t border-slate-100 text-[11px] text-slate-600">
-                        <div>
-                          <span className="text-slate-400 block text-[10px] font-sans">Distance</span>
-                          <span className="font-bold text-slate-800">
-                            {verifyResult.detailed_result.location?.distance_meters != null
-                              ? `${verifyResult.detailed_result.location.distance_meters} m`
-                              : '0 m'}
-                          </span>
-                        </div>
-                        <div>
-                          <span className="text-slate-400 block text-[10px] font-sans">GPS Accuracy</span>
-                          <span className="font-bold text-slate-800">
-                            {verifyResult.detailed_result.location?.accuracy_meters != null
-                              ? `±${verifyResult.detailed_result.location.accuracy_meters} m`
-                              : '±5 m'}
-                          </span>
-                        </div>
-                        <div>
-                          <span className="text-slate-400 block text-[10px] font-sans">Tolerance</span>
-                          <span className="font-bold text-slate-800">
-                            {verifyResult.detailed_result.location?.tolerance_meters != null
-                              ? `±${verifyResult.detailed_result.location.tolerance_meters} m`
-                              : '±300 m'}
-                          </span>
-                        </div>
+
+                      <div className="flex justify-between items-center bg-white p-2.5 rounded border border-slate-100">
+                        <span className="font-semibold text-slate-700">Scene Match:</span>
+                        <span className="font-bold text-emerald-700">
+                          {verifyResult.detailed_result.scene?.status || 'STRONG MATCH'}
+                        </span>
+                      </div>
+
+                      <div className="flex justify-between items-center bg-white p-2.5 rounded border border-slate-100">
+                        <span className="font-semibold text-slate-700">Issue Resolved:</span>
+                        <span className="font-bold text-emerald-700">
+                          {verifyResult.detailed_result.issue?.status || 'RESOLVED'}
+                        </span>
                       </div>
                     </div>
+                  )}
+                </div>
+              )}
+            </div>
 
-                    <div className="flex justify-between items-center bg-white p-2.5 rounded border border-slate-100">
-                      <span className="font-semibold text-slate-700">Scene Match:</span>
-                      <span className="font-bold text-emerald-700">
-                        {verifyResult.detailed_result.scene?.status || 'STRONG MATCH'}
-                      </span>
-                    </div>
-
-                    <div className="flex justify-between items-center bg-white p-2.5 rounded border border-slate-100">
-                      <span className="font-semibold text-slate-700">Issue Resolved:</span>
-                      <span className="font-bold text-emerald-700">
-                        {verifyResult.detailed_result.issue?.status || 'RESOLVED'}
-                      </span>
-                    </div>
-                  </div>
-                )}
-
+            {/* Sticky Action Footer */}
+            <div className="p-4 sm:p-5 border-t border-slate-100 bg-white shrink-0">
+              {verifyResult ? (
                 <button
                   onClick={() => {
                     setShowVerifyModal(false);
                     navigate('/worker/dashboard');
                   }}
-                  className="w-full btn-primary"
+                  className="w-full btn-primary py-2.5 font-bold"
                 >
                   Back to Task Queue
                 </button>
-              </div>
-            ) : (
-              <button
-                onClick={handleSubmitVerification}
-                disabled={!evidencePhoto || isVerifying}
-                className="w-full btn-primary"
-              >
-                {isVerifying ? (
-                  <>
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                    <span>{verifyStatusText || 'Running verification checks...'}</span>
-                  </>
-                ) : (
-                  <span>Submit for Verification</span>
-                )}
-              </button>
-            )}
+              ) : (
+                <button
+                  onClick={handleSubmitVerification}
+                  disabled={!evidencePhoto || isVerifying}
+                  className="w-full btn-primary py-2.5 font-bold"
+                >
+                  {isVerifying ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      <span>{verifyStatusText || 'Running verification checks...'}</span>
+                    </>
+                  ) : (
+                    <span>Submit for Verification</span>
+                  )}
+                </button>
+              )}
+            </div>
           </div>
         </div>
       )}
