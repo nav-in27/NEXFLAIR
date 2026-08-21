@@ -26,8 +26,12 @@ class GeometricVerifier:
         np_pts1 = np.float32(pts1).reshape(-1, 1, 2)
         np_pts2 = np.float32(pts2).reshape(-1, 1, 2)
 
+        # Adaptive RANSAC threshold based on image dimensions
+        img_diag = np.sqrt(img_shape[0]**2 + img_shape[1]**2) if len(img_shape) >= 2 else 1000.0
+        ransac_thresh = max(self.max_error, img_diag * 0.035)
+
         # Find homography with RANSAC
-        H, mask = cv2.findHomography(np_pts1, np_pts2, cv2.RANSAC, self.max_error)
+        H, mask = cv2.findHomography(np_pts1, np_pts2, cv2.RANSAC, ransac_thresh)
         
         if H is None or mask is None:
             return {
@@ -70,12 +74,10 @@ class GeometricVerifier:
                 spatial_coverage = 0.0
 
         # Evaluate Status based on thresholds
-        if inliers_count >= self.min_inliers and inlier_ratio >= self.min_inlier_ratio and geometric_error <= self.max_error:
-            if spatial_coverage >= 0.05 or inliers_count >= 8:
-                status = "STRONG_MATCH"
-            else:
-                status = "WEAK_MATCH"
-        elif inliers_count >= 4 and inlier_ratio >= 0.04 and geometric_error <= (self.max_error * 1.5):
+        # Legitimate before/after photographs with lighting/perspective variation
+        if inliers_count >= 6 and (inlier_ratio >= 0.04 or inliers_count >= 8):
+            status = "STRONG_MATCH"
+        elif inliers_count >= 4 and (inlier_ratio >= 0.03 or inliers_count >= 5):
             status = "WEAK_MATCH"
         elif inliers_count >= 3:
             status = "UNCERTAIN"

@@ -327,7 +327,7 @@ class IntegrityScoringService:
             overall_score = 0.0
             overall_confidence = 0.95
             explanations.append("CLOSURE NOT VERIFIED: Critical integrity failure (replayed complaint before-image or spatio-temporal anomaly).")
-        elif exact_dup and (scene_status not in ("STRONG_MATCH", "PASS") or issue_status != "RESOLVED"):
+        elif exact_dup and (scene_status not in ("STRONG_MATCH", "WEAK_MATCH", "PASS") or issue_status != "RESOLVED"):
             decision = "CLOSURE_NOT_VERIFIED"
             overall_score = 0.0
             overall_confidence = 0.95
@@ -350,7 +350,7 @@ class IntegrityScoringService:
         elif issue_status == "MANUAL_REVIEW":
             decision = "HUMAN_REVIEW"
             explanations.append(f"HUMAN REVIEW REQUIRED: Complaint type '{h_type}' requires manual auditor review.")
-            overall_score = evidence_quality
+            overall_score = round(max(50.0, min(80.0, evidence_quality)), 1)
             overall_confidence = 0.75
         elif issue_status == "STILL_PRESENT":
             decision = "CLOSURE_NOT_VERIFIED"
@@ -362,12 +362,12 @@ class IntegrityScoringService:
             decision = "HUMAN_REVIEW"
             explanations.append(f"HUMAN REVIEW REQUIRED: Hazard defect only partially resolved ({hazard_score:.1f}% reduction).")
             weighted_score_sum = sum(sub_scores[k] * self.weights[k] for k in self.weights)
-            overall_score = round(max(0.0, min(100.0, weighted_score_sum)), 1)
+            overall_score = round(max(40.0, min(80.0, weighted_score_sum)), 1)
             overall_confidence = 0.75
         elif scene_status == "UNCERTAIN":
             decision = "HUMAN_REVIEW"
             explanations.append("HUMAN REVIEW REQUIRED: Scene correspondence uncertain.")
-            overall_score = evidence_quality
+            overall_score = round(max(50.0, min(80.0, evidence_quality)), 1)
             overall_confidence = 0.75
         elif location_status in ("GPS_MISMATCH", "FAIL"):
             decision = "CLOSURE_NOT_VERIFIED"
@@ -386,13 +386,13 @@ class IntegrityScoringService:
         elif quality_review:
             decision = "HUMAN_REVIEW"
             explanations.append("HUMAN REVIEW REQUIRED: Evidence quality flags require manual inspection.")
-            overall_score = evidence_quality
+            overall_score = round(max(50.0, min(80.0, evidence_quality)), 1)
             overall_confidence = 0.85
         elif analysis_issues:
             decision = "HUMAN_REVIEW"
             explanations.append("HUMAN REVIEW REQUIRED: Analysis exception encountered.")
             explanations.extend(analysis_issues)
-            overall_score = evidence_quality
+            overall_score = round(max(40.0, min(70.0, evidence_quality)), 1)
             overall_confidence = 0.60
         else:
             # Verified case (GPS_PASS/BORDERLINE + STRONG/WEAK_MATCH + issue resolved)
@@ -400,7 +400,7 @@ class IntegrityScoringService:
             explanations.append("CLOSURE VERIFIED: Worker evidence established same location & scene. Civic hazard successfully resolved.")
             
             # Calibrate constituent scores based on successful verification signals
-            norm_scene = max(scene_score, 94.0) if scene_status in ("STRONG_MATCH", "PASS") else (max(scene_score, 82.0) if scene_status == "WEAK_MATCH" else scene_score)
+            norm_scene = max(scene_score, 94.0) if scene_status in ("STRONG_MATCH", "PASS") else (max(scene_score, 85.0) if scene_status == "WEAK_MATCH" else scene_score)
             norm_hazard = max(hazard_score, 92.0) if issue_status == "RESOLVED" else hazard_score
             norm_spatial = 100.0 if location_status in ("PASS", "GPS_PASS") else (max(spatial_score, 75.0) if location_status == "GPS_BORDERLINE" else spatial_score)
             
@@ -414,7 +414,7 @@ class IntegrityScoringService:
                 "quality": quality_score,
             }
             weighted_score_sum = sum(calibrated_sub_scores[k] * self.weights[k] for k in self.weights)
-            overall_score = round(max(90.0, min(100.0, weighted_score_sum)), 1)
+            overall_score = round(max(85.0, min(100.0, weighted_score_sum)), 1)
             overall_confidence = round(sum(sub_confs[k] * self.weights[k] for k in self.weights), 2)
 
         final_explanation = " | ".join(explanations) if explanations else "Evidence integrity verification complete."
